@@ -12,9 +12,6 @@ import re
 
 import utils
 
-# EMBEDDING_MATRIX = utils.load_embedding_matrix('app/artifacts/embedding_matrix.npy')
-# VOCAB = utils.load_vocab('app/artifacts/vocab.pkl')
-
 class attention(nn.Module):
     def __init__(self, hidden_size):
         super(attention, self).__init__()
@@ -181,6 +178,8 @@ class inference_model:
                 sentenceidx.append(0)
         return sentenceidx
     def predict(self, text):
+        if not isinstance(text, str) or not text or text.strip() == "":
+            raise TypeError(f"Expected type string. Got {type(text)}")
         prep_text, prep_len_text = self.__predict_prepare_data(text)
         # prep_len_text = prep_len_text.to('cpu')
         # prep_text = prep_text.to('cpu')

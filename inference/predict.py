@@ -6,18 +6,25 @@ from .utils import get_stopwords
 from typing import Union
 
 class batch_predictor:
-    def __init__(self, model:model_module.inference_model):
+    def __init__(self, model:model_module.inference_model, text_column:str):
         self.model = model
         self.df = None
-    def __preprocess(self, df:pd.DataFrame):
-        df['text'] = df['text'].str.lower()
-        return df
+        self.text_column = text_column
+    def __preprocess(self):
+        text_series = self.df[self.text_column].str.lower()
+        empty_mask = text_series.apply(lambda x: isinstance(x, str) and x.strip() != "" and len(x.split()) > 1)
+        return text_series, empty_mask
     def __predict(self):
         if self.df is None or not isinstance(self.df, pd.DataFrame):
             raise ValueError(f"Value error: `df` is empty or not pandas DataFrame. Got {type(self.df)}")
-        preprocessed_df = self.__preprocess(self.df)
-        self.df['prediction'] = preprocessed_df['text'].apply(lambda x: self.model.predict(x)[0])
-        del preprocessed_df
+        if not self.text_column:
+            raise ValueError(f'Value error: `text_column` is empty')
+        if self.text_column not in list(self.df.columns):
+            raise KeyError(f'Key error: `text_column` not in index. Got {list(self.df.columns)}')
+        text_series, empty_mask = self.__preprocess()
+        self.df.loc[empty_mask, 'prediction'] = text_series[empty_mask].apply(lambda x : self.model.predict(x)[0])
+        self.df.loc[~empty_mask, 'prediction'] = None
+        del text_series
     def __read(self, file):
         try:
             self.df = pd.read_csv(file)
@@ -25,6 +32,8 @@ class batch_predictor:
             raise FileNotFoundError(f"file not found: {file}")
         except pd.errors.EmptyDataError:
             raise ValueError("File is empty")
+        except RuntimeError:
+            raise RuntimeError(f'Expected file path. Got type: {type(file)}')
         except Exception as e:
             raise RuntimeError(f"Unexpected error: {e}")
     def fit_transform(self, file):
@@ -42,25 +51,28 @@ class batch_predictor:
         return self.df
 
 class topic_extractor:
-    def __init__(self):
+    def __init__(self, text_column: str):
         self.valid_sentiment = set(['Positive', 'Negative', 'Neutral'])
         self.df = None
         self.tfidf_vectorizer = TfidfVectorizer(stop_words=get_stopwords(), ngram_range=(2,2))
         self.word_matrix = None
         self.words = None
+        self.text_column = text_column
     def __get_text_by_sentiment(self, sentiment:str) -> list:
         if self.df is None or not isinstance(self.df, pd.DataFrame):
             raise ValueError(f'Value error: `df` is empty or is not pandas DataFrame. Got {type(self.df)}')
         sentiment = sentiment.capitalize()
         if sentiment not in self.valid_sentiment:
             raise ValueError(f"Invalid sentiment: `sentiment` must be one of. {', '.join(self.valid_sentiment)}")
-        return self.df[self.df['prediction'] == sentiment]['text'].str.lower().tolist()
+        if self.text_column not in list(self.df.columns):
+            raise ValueError(f"Invalid text column: `text_column` must be one of. {', '.join(list(self.df.columns))}")
+        return self.df[self.df['prediction'] == sentiment][self.text_column].str.lower().tolist()
     def __extract(self, sentiment:str):
         text = self.__get_text_by_sentiment(sentiment)
         self.word_matrix = self.tfidf_vectorizer.fit_transform(text)
         self.words = self.tfidf_vectorizer.get_feature_names_out()
         words_df = pd.DataFrame(self.word_matrix.toarray(), columns=self.words)
-        topics = pd.DataFrame({'word' : words_df.columns.tolist(), 'score' : words_df.std(axis=0).values})
+        topics = pd.DataFrame({'word' : words_df.columns.tolist(), 'score' : words_df.std(axis=0).fillna(0).values})
         return topics
     def fit(self, df):
         self.df = df

@@ -1,0 +1,4 @@
+import os
+
+MAX_SIZE_MB = int(os.getenv('MAX_CLIENT_UPLOAD_SIZE', 5))
+MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
