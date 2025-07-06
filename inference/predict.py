@@ -10,6 +10,7 @@ class batch_predictor:
         self.model = model
         self.df = None
         self.text_column = text_column
+        self.len_valid_mask = 0
     def __preprocess(self):
         text_series = self.df[self.text_column].str.lower()
         empty_mask = text_series.apply(lambda x: isinstance(x, str) and x.strip() != "" and len(x.split()) > 1)
@@ -21,10 +22,13 @@ class batch_predictor:
             raise ValueError(f'Value error: `text_column` is empty')
         if self.text_column not in list(self.df.columns):
             raise KeyError(f'Key error: `text_column` not in index. Got {list(self.df.columns)}')
-        text_series, empty_mask = self.__preprocess()
-        self.df.loc[empty_mask, 'prediction'] = text_series[empty_mask].apply(lambda x : self.model.predict(x)[0])
-        self.df.loc[~empty_mask, 'prediction'] = None
+        text_series, valid_mask = self.__preprocess()
+        self.__count_valid_mask(valid_mask)
+        self.df.loc[valid_mask, 'prediction'] = text_series[valid_mask].apply(lambda x : self.model.predict(x)[0])
+        self.df.loc[~valid_mask, 'prediction'] = None
         del text_series
+    def __count_valid_mask(self, mask:pd.Series):
+        self.len_valid_mask = mask[mask == True].count()
     def __read(self, file):
         try:
             self.df = pd.read_csv(file)
@@ -48,7 +52,7 @@ class batch_predictor:
         if df is not None:
             self.df = df
         self.__predict()
-        return self.df
+        return self.df, self.len_valid_mask
 
 class topic_extractor:
     def __init__(self, text_column: str):
@@ -69,11 +73,14 @@ class topic_extractor:
         return self.df[self.df['prediction'] == sentiment][self.text_column].str.lower().tolist()
     def __extract(self, sentiment:str):
         text = self.__get_text_by_sentiment(sentiment)
-        self.word_matrix = self.tfidf_vectorizer.fit_transform(text)
-        self.words = self.tfidf_vectorizer.get_feature_names_out()
-        words_df = pd.DataFrame(self.word_matrix.toarray(), columns=self.words)
-        topics = pd.DataFrame({'word' : words_df.columns.tolist(), 'score' : words_df.std(axis=0).fillna(0).values})
-        return topics
+        if text:
+            self.word_matrix = self.tfidf_vectorizer.fit_transform(text)
+            self.words = self.tfidf_vectorizer.get_feature_names_out()
+            words_df = pd.DataFrame(self.word_matrix.toarray(), columns=self.words)
+            topics = pd.DataFrame({'word' : words_df.columns.tolist(), 'score' : words_df.std(axis=0).fillna(0).values.tolist()})
+            return topics
+        else:
+            return pd.DataFrame({'word' : [], 'score' : []})
     def fit(self, df):
         self.df = df
     def transform(self, sentiment:str, df:pd.DataFrame=None) -> pd.DataFrame:

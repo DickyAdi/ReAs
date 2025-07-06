@@ -26,7 +26,7 @@ async def extract(request: Request, text_column: str, file: UploadFile = File(..
     df = valid.get('data')
     model = request.app.state.model
     predictor = predict.batch_predictor(model, text_column)
-    predicted_df = predictor.fit_transform(df)
+    predicted_df, len_valid_mask = predictor.fit_transform(df)
     extractor = predict.topic_extractor(text_column)
     extractor.fit(predicted_df)
     positive_topics = extractor.transform('Positive')
@@ -39,6 +39,7 @@ async def extract(request: Request, text_column: str, file: UploadFile = File(..
                             'message' : 'Extraction successful',
                             'data' : {
                                 'positive_topics' : positive_topics.to_dict(orient='records'),
-                                'negative_topics' : negative_topics.to_dict(orient='records')
+                                'negative_topics' : negative_topics.to_dict(orient='records'),
+                                'number_valid_rows' : int(len_valid_mask)
                             }
                         })
