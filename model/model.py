@@ -5,12 +5,12 @@ import lightning as L
 from torchmetrics.classification import MulticlassAccuracy, MulticlassF1Score
 from torchmetrics.functional.classification import multiclass_accuracy, multiclass_f1_score
 from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-import matplotlib.pyplot as plt
-import seaborn as sns
 import re
 
-import utils
+from config.settings import settings
+from loggers.log import get_loggers
+
+model_logger = get_loggers('reas.model')
 
 class attention(nn.Module):
     def __init__(self, hidden_size):
@@ -146,9 +146,8 @@ class biLSTM_Attention(L.LightningModule):
 
 class inference_model:
     def __init__(self, model, vocab):
-        # self.model = model.load_from_checkpoint(weights_path).to('cpu').eval()
         self.model = model
-        self.MAX_TOKEN = 256
+        self.chunk_size = settings.predict_chunk_size
         self.vocab = vocab
         self.class2idx = {
             'Positive' : 0,
@@ -162,11 +161,19 @@ class inference_model:
         }
     def __remove_emoticons(self,text):
         return re.sub(r'[^\w\s,.]', '', text)
-    def __predict_prepare_data(self, sentence):
-        # sentence = self.__remove_emoticons(sentence)
-        text = torch.LongTensor(self.__sentence2idx(sentence)).unsqueeze(0)
-        text_lengths = torch.tensor([len(self.__sentence2idx(sentence))])
-        return text, text_lengths
+    def __predict_prepare_data(self, sentence:list[str]):
+        texts = [t for t in sentence if isinstance(t, str) and t.strip() != '']
+        if not texts:
+            raise ValueError(f'No valid string after filtering.')
+        indexed = [self.__sentence2idx(t) for t in texts]
+        lengths = torch.tensor([len(x) for x in indexed])
+        max_length = max(lengths) if lengths.numel() > 0 else 0
+        padded = [
+            seq + [0] * (max_length - len(seq))
+            for seq in indexed
+        ]
+        text_tensor = torch.LongTensor(padded)
+        return text_tensor, lengths
     def __sentence2idx(self, sentence):
         sentenceidx = []
         for word in word_tokenize(sentence):
@@ -177,25 +184,23 @@ class inference_model:
             else:
                 sentenceidx.append(0)
         return sentenceidx
-    def predict(self, text):
-        if not isinstance(text, str) or not text or text.strip() == "":
-            raise TypeError(f"Expected type string. Got {type(text)}")
-        prep_text, prep_len_text = self.__predict_prepare_data(text)
-        # prep_len_text = prep_len_text.to('cpu')
-        # prep_text = prep_text.to('cpu')
-        with torch.no_grad():
-            pred, context_weights = self.model(prep_text, prep_len_text)
-        pred = self.idx2class[int(torch.argmax(pred, 1))]
-        return pred, context_weights
-    def visualize_attention(self, text, title=True):
-        prediction, attention_weights = self.predict(text)
-        sentence_list = word_tokenize(text)
-        print(prediction)
-        plt.figure(figsize=(15,6))
-        sns.heatmap(attention_weights.cpu().numpy(), annot=False, cmap='Blues', xticklabels=sentence_list)
-        plt.xticks(rotation=90)
-        plt.xlabel('Tokens')
-        plt.ylabel('Attention Weights')
-        if title:
-            plt.title(text)
-        plt.show()
+    def predict(self, texts:str | list[str]):
+        is_single = isinstance(texts, str)
+        if is_single:
+            texts = [texts]
+        else:
+            if not isinstance(texts, list):
+                raise TypeError(f"Expected str or list[str]. Got {type(texts)}")
+        pred_results = []
+        total = len(texts)
+        total_chunk = (total + self.chunk_size - 1) // self.chunk_size
+        model_logger.info('Starting batch prediction with total of %d chunks...', total_chunk)
+        for i in range(0, total, self.chunk_size):
+            chunk = texts[i:i+self.chunk_size]
+            prep_text, prep_len_text = self.__predict_prepare_data(chunk)
+            with torch.no_grad():
+                pred, context_weights = self.model(prep_text, prep_len_text)
+            indices = torch.argmax(pred, 1).numpy()
+            labels = [self.idx2class[int(x)] for x in indices]
+            pred_results.extend(labels)
+        return pred_results[0] if is_single else pred_results

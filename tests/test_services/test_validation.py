@@ -5,7 +5,7 @@ from fastapi.datastructures import UploadFile
 from fastapi.responses import JSONResponse
 
 from services import validation
-from config.settings import MAX_SIZE_BYTES
+from config.settings import settings
 
 @pytest.mark.asyncio
 async def test_validation_valid():
@@ -32,7 +32,7 @@ async def test_validation_not_csv_files():
 
 @pytest.mark.asyncio
 async def test_validation_oversize_file():
-    contents = b"review\n" + b"A" * (MAX_SIZE_BYTES + 1)
+    contents = b"review\n" + b"A" * (settings.max_size_bytes + 1)
     file = UploadFile(filename='test.csv', file=io.BytesIO(contents))
     response = await validation.validate_file(file, 'review')
 

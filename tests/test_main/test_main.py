@@ -27,4 +27,4 @@ def test_main(monkeypatch):
             files={'file' : ('test.csv', io.BytesIO(content), 'text/csv')}
             )
         assert response.status_code == 200
-        assert 'positive_topics' in response.json()['data']
+        assert 'positive' in response.json()['data']

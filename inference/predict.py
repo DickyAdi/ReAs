@@ -1,9 +1,15 @@
 import pandas as pd
+import time
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from model import model as model_module
 from .utils import get_stopwords
 from typing import Union
+# from logging.log import get_loggers
+from loggers.log import get_loggers
+
+predict_logger = get_loggers('reas.predict')
+extractor_logger = get_loggers('reas.extractor')
 
 class batch_predictor:
     def __init__(self, model:model_module.inference_model, text_column:str):
@@ -11,47 +17,71 @@ class batch_predictor:
         self.df = None
         self.text_column = text_column
         self.len_valid_mask = 0
+        self.start_time = time.time()
+        predict_logger.info('Batch predictor initiated.')
     def __preprocess(self):
+        predict_logger.info('Preprocessing started with text column of %s.', self.text_column)
         text_series = self.df[self.text_column].str.lower()
         empty_mask = text_series.apply(lambda x: isinstance(x, str) and x.strip() != "" and len(x.split()) > 1)
+        predict_logger.info('Preprocessing finished with %d valid rows.', empty_mask[empty_mask == True].count())
         return text_series, empty_mask
     def __predict(self):
+        predict_logger.info('Prediction started with text column of %s.', self.text_column)
         if self.df is None or not isinstance(self.df, pd.DataFrame):
+            predict_logger.error('`df` is not valid DataFrame.')
             raise ValueError(f"Value error: `df` is empty or not pandas DataFrame. Got {type(self.df)}")
         if not self.text_column:
+            predict_logger.error('`text_column` is empty.')
             raise ValueError(f'Value error: `text_column` is empty')
         if self.text_column not in list(self.df.columns):
+            predict_logger.error('`text_column` not in DataFrame columns. Got %s', self.df.columns.tolist())
             raise KeyError(f'Key error: `text_column` not in index. Got {list(self.df.columns)}')
         text_series, valid_mask = self.__preprocess()
         self.__count_valid_mask(valid_mask)
-        self.df.loc[valid_mask, 'prediction'] = text_series[valid_mask].apply(lambda x : self.model.predict(x)[0])
+        predict_logger.info('Running prediction on %d valid rows out of %d total rows.', self.len_valid_mask, len(text_series))
+        # self.df.loc[valid_mask, 'prediction'] = text_series[valid_mask].apply(lambda x : self.model.predict(x)[0])
+        self.df.loc[valid_mask, 'prediction'] = self.model.predict(text_series[valid_mask].tolist())
         self.df.loc[~valid_mask, 'prediction'] = None
+        predict_logger.info('Prediction finished...')
         del text_series
     def __count_valid_mask(self, mask:pd.Series):
         self.len_valid_mask = mask[mask == True].count()
+        predict_logger.debug('number of valid row: %d', self.len_valid_mask)
     def __read(self, file):
+        predict_logger.info('Reading file %s', file)
         try:
             self.df = pd.read_csv(file)
+            predict_logger.info('File loaded successfully. Got %d rows.', len(self.df))
         except FileNotFoundError:
+            predict_logger.error('File not found: %s', file)
             raise FileNotFoundError(f"file not found: {file}")
         except pd.errors.EmptyDataError:
+            predict_logger.error('File is empty: %s', file)
             raise ValueError("File is empty")
         except RuntimeError:
+            predict_logger.error('Expected file path. Got type: %s', type(file))
             raise RuntimeError(f'Expected file path. Got type: {type(file)}')
         except Exception as e:
+            predict_logger.error('Unexpected error while reading the file.')
             raise RuntimeError(f"Unexpected error: {e}")
     def fit_transform(self, file):
+        predict_logger.info('Running fit_transform...')
         self.fit(file)
         return self.transform()
     def fit(self, file:Union[str, pd.DataFrame]):
+        predict_logger.info('Running fit...')
         if isinstance(file, pd.DataFrame):
             self.df = file
+            predict_logger.info('File is DataFrame. Initiated DataFrame with %d rows instead.', len(self.df))
         else:
+            predict_logger.info('Reading file: %s', file)
             self.__read(file)
     def transform(self, df=None):
+        predict_logger.info('Running transform...')
         if df is not None:
             self.df = df
         self.__predict()
+        predict_logger.debug('Batch prediction of %d rows finished in %.4fs', len(self.df), round(time.time() - self.start_time, 4))
         return self.df, self.len_valid_mask
 
 class topic_extractor:
@@ -62,32 +92,46 @@ class topic_extractor:
         self.word_matrix = None
         self.words = None
         self.text_column = text_column
+        extractor_logger.info('topic_extractor initiated...')
     def __get_text_by_sentiment(self, sentiment:str) -> list:
+        extractor_logger.info('Getting text by %s sentiment', sentiment)
         if self.df is None or not isinstance(self.df, pd.DataFrame):
+            extractor_logger.error('`df` is invalid. Got %s', type(self.df))
             raise ValueError(f'Value error: `df` is empty or is not pandas DataFrame. Got {type(self.df)}')
         sentiment = sentiment.capitalize()
         if sentiment not in self.valid_sentiment:
+            extractor_logger.error('`sentiment` is invalid. Got %s', sentiment)
             raise ValueError(f"Invalid sentiment: `sentiment` must be one of. {', '.join(self.valid_sentiment)}")
         if self.text_column not in list(self.df.columns):
+            extractor_logger.error('`text_column` is not in DataFrame column. Got %s from %s', self.text_column, self.df.columns.tolist())
             raise ValueError(f"Invalid text column: `text_column` must be one of. {', '.join(list(self.df.columns))}")
+        extractor_logger.info('Got %d rows', len(self.df[self.df['prediction'] == sentiment]))
         return self.df[self.df['prediction'] == sentiment][self.text_column].str.lower().tolist()
     def __extract(self, sentiment:str):
+        extractor_logger.info('Extracting %s topics...', sentiment)
         text = self.__get_text_by_sentiment(sentiment)
         if text:
+            extractor_logger.info('Starting extraction...')
             self.word_matrix = self.tfidf_vectorizer.fit_transform(text)
             self.words = self.tfidf_vectorizer.get_feature_names_out()
             words_df = pd.DataFrame(self.word_matrix.toarray(), columns=self.words)
             topics = pd.DataFrame({'word' : words_df.columns.tolist(), 'score' : words_df.std(axis=0).fillna(0).values.tolist()})
+            extractor_logger.info('Extraction completed with %d rows topics.', len(topics))
             return topics
         else:
+            extractor_logger.warning('Got empty %s sentiment in DataFrame.', sentiment)
             return pd.DataFrame({'word' : [], 'score' : []})
     def fit(self, df):
+        extractor_logger.info('Starting fit...')
         self.df = df
     def transform(self, sentiment:str, df:pd.DataFrame=None) -> pd.DataFrame:
+        extractor_logger.info('Starting transform...')
         if df:
             self.df = df
+            extractor_logger.info('`df` is provided, initializing.')
         topics = self.__extract(sentiment)
         return topics
     def fit_transform(self, df, sentiment):
+        extractor_logger.info('Starting fit_transform...')
         self.fit(df)
         return self.transform(sentiment=sentiment)
