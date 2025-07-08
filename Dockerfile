@@ -1,14 +1,22 @@
-FROM python:3.12.11-slim
+#Building stage
+FROM python:3.12.11-slim AS builder
 
 WORKDIR /app
-
-#Initiate empty log dir
-RUN mkdir -p logs
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+#Initiate empty log dir
+RUN mkdir -p logs
+
+#Runtime stage
+FROM python:3.12.11-slim AS final
+
+WORKDIR /app
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app .
 
 EXPOSE 8000
 
