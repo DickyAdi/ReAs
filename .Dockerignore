@@ -1,8 +1,10 @@
 __pycache__/
-logs/
+logs/*
+!logs/.keep
 tmp/
-notebook/
+notebooks/
 tests/
+./pytest_cache
 .env
 *.pyc
 .DS_Store
