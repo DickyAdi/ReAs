@@ -5,7 +5,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from model import model as model_module
 from .utils import get_stopwords
 from typing import Union
-# from logging.log import get_loggers
 from loggers.log import get_loggers
 
 predict_logger = get_loggers('reas.predict')
@@ -39,7 +38,6 @@ class batch_predictor:
         text_series, valid_mask = self.__preprocess()
         self.__count_valid_mask(valid_mask)
         predict_logger.info('Running prediction on %d valid rows out of %d total rows.', self.len_valid_mask, len(text_series))
-        # self.df.loc[valid_mask, 'prediction'] = text_series[valid_mask].apply(lambda x : self.model.predict(x)[0])
         self.df.loc[valid_mask, 'prediction'] = self.model.predict(text_series[valid_mask].tolist())
         self.df.loc[~valid_mask, 'prediction'] = None
         predict_logger.info('Prediction finished...')

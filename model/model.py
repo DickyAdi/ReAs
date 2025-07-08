@@ -145,6 +145,15 @@ class biLSTM_Attention(L.LightningModule):
         return optimizer
 
 class inference_model:
+    """This class is an inference wrapper for the model. Override predict method according on how the model produce an output
+
+    Attributes:
+        model (model-like): The model that will be wrapped.
+        chunk_size (int): Chunk size according to the .env.
+        vocab (dict-like): Model vocabulary to map input and output text.
+        class2idx (dict): Class/label to index mapping.
+        idx2class (dict): Index to class/label mapping.
+    """
     def __init__(self, model, vocab):
         self.model = model
         self.chunk_size = settings.predict_chunk_size
@@ -159,26 +168,52 @@ class inference_model:
             1 : 'Negative',
             2 : 'Neutral'
         }
-    def __remove_emoticons(self,text):
+    def _remove_emoticons(self, text:str):
+        """Don't override unless you know what you are doing!
+        Remove all emojis from input text.
+
+        Args:
+            text (str): Input text.
+
+        Returns:
+            str: Input text without emojis.
+        """
         return re.sub(r'[^\w\s,.]', '', text)
-    def __clean_text(self, sentences:str | list[str]):
+    def _clean_text(self, sentences:str | list[str]):
+        """Don't override unless you know what you are doing!
+        Cleaning, filterring, lowercasing, and tokenizing input texts.
+
+        Args:
+            sentences (str | list[str]): Input text if string, else input texts
+
+        Raises:
+            ValueError: If `sentence` not str or list[str].
+
+        Returns:
+            list[list[str]]: Cleaned tokenized input texts for mapping.
+        """
         texts = []
         for text in sentences:
             if isinstance(text, str) and text.strip() != '':
-                # texts.append(self.__remove_emoticons(text))
-                cleaned = self.__remove_emoticons(text)
+                cleaned = self._remove_emoticons(text)
                 tokenized_texts = word_tokenize(cleaned)
-                # if len(tokenized_texts) < 2:
-                #     model_logger.error('Text should at least contain 2 words')
-                #     raise ValueError(f'Text should at least contain 2 words.')
                 texts.append(tokenized_texts)
             else:
                 model_logger.error('Found invalid string after filtering, likely an empty white space or None type.')
                 raise ValueError(f'Found invalid string after filtering.')
         return texts
-    def __predict_prepare_data(self, sentence:list[str]):
-        tokenized_texts = self.__clean_text(sentence)
-        indexed = [self.__sentence2idx(t) for t in tokenized_texts]
+    def _predict_prepare_data(self, sentence:list[str]):
+        """Don't override unless you know what you are doing!
+        Data prep before prediction, including tensor converting, padding, cleaning, and tokenizing.
+
+        Args:
+            sentence (list[str]): Input text.
+
+        Returns:
+            tuple(tensor, tensor): A tuple of text and text length tensors.
+        """
+        tokenized_texts = self._clean_text(sentence)
+        indexed = [self._sentence2idx(t) for t in tokenized_texts]
         lengths = torch.tensor([len(x) for x in indexed])
         max_length = max(lengths) if lengths.numel() > 0 else 0
         padded = [
@@ -187,18 +222,35 @@ class inference_model:
         ]
         text_tensor = torch.LongTensor(padded)
         return text_tensor, lengths
-    def __sentence2idx(self, sentence):
+    def _sentence2idx(self, sentence:list[list[str]]):
+        """Don't override unless you know what you are doing!
+        Mapping each tokenized word from a sentence to a vocab index.
+
+        Args:
+            sentence (list[list[str]]): List of tokenized sentence.
+
+        Returns:
+            list[int]: List of tokens index.
+        """
         sentenceidx = []
         for word in sentence:
             if re.fullmatch(r"[a-zA-Z0-9.,!?;:'\"()\[\]\-{}@#$%&+/=_\\|^~`]+", word):
                 word = word.lower()
-            # if word in self.vocab:
-            #     sentenceidx.append(self.vocab[word])
-            # else:
-            #     sentenceidx.append(0)
             sentenceidx.append(self.vocab.get(word, 0))
         return sentenceidx
-    def predict(self, texts:str | list[str]):
+    def predict(self, texts:str | list[str]) -> str | list[str]:
+        """A prediction step for the model to take. This includes whether single or batch predictions.
+        Override this method according to the used model prediction behavior.
+
+        Args:
+            texts (str | list[str]): Input texts.
+
+        Raises:
+            TypeError: If texts is not str or list[str].
+
+        Returns:
+            str | list[str]: Will return str of the prediction if single text provided, else will return predicted list[str].
+        """
         is_single = isinstance(texts, str)
         if is_single:
             texts = [texts]
@@ -211,7 +263,7 @@ class inference_model:
         model_logger.info('Starting batch prediction with total of %d chunks...', total_chunk)
         for i in range(0, total, self.chunk_size):
             chunk = texts[i:i+self.chunk_size]
-            prep_text, prep_len_text = self.__predict_prepare_data(chunk)
+            prep_text, prep_len_text = self._predict_prepare_data(chunk)
             with torch.no_grad():
                 pred, context_weights = self.model(prep_text, prep_len_text)
             indices = torch.argmax(pred, 1).numpy()
