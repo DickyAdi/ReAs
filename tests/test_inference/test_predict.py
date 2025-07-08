@@ -47,3 +47,38 @@ def test_batch_predictor_with_empty_row_dataframe():
     assert 'prediction' in list(res_df.columns)
     assert res_df['prediction'].unique().tolist() == []
     assert len(res_df['prediction']) == 0
+
+df_topic_valid = pd.DataFrame({
+    'prediction' : ['Positive', 'Positive', 'Negative', 'Negative'],
+    'text' : ['Dem yada', 'Yada wutt', 'Nice coffee', 'Lorem Ipsum']
+})
+
+df_topic_empty = pd.DataFrame(columns=['prediction', 'text'])
+
+
+def test_topic_extractor_with_valid_dataframe():
+    extractor = topic_extractor('text')
+    topics = extractor.fit_transform(df_topic_valid, 'Positive')
+
+    assert set(['word', 'score']).issubset(set(topics.columns.tolist()))
+    assert not topics.empty
+    assert len(topics) == 2
+
+@pt.mark.parametrize('df, sentiment, text_column, expected', [
+    (df_topic_empty, 'Positive', 'text', pd.DataFrame(columns=['word', 'score'])),
+    (None, 'Positive', 'text', pt.raises(ValueError)), # df is none
+    (df_topic_valid, 'dummy', 'text', pt.raises(ValueError)), #Wrong sentiment
+    (df_topic_valid, 'Positive', 'dummy', pt.raises(ValueError)), #Wrong text column
+])
+def test_topic_extractor_with_bad_input(df, sentiment, text_column, expected):
+    if isinstance(expected, pd.DataFrame):
+        extractor = topic_extractor(text_column)
+        topics = extractor.fit_transform(df, sentiment)
+        assert isinstance(topics, pd.DataFrame)
+        assert topics.empty
+        assert len(topics) == 0
+        assert set(['word', 'score']).issubset(set(topics.columns.tolist()))
+    else:
+        with expected:
+            extractor = topic_extractor(text_column)
+            topics = extractor.fit_transform(df, sentiment)

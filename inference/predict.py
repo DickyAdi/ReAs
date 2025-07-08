@@ -105,6 +105,9 @@ class topic_extractor:
         if self.text_column not in list(self.df.columns):
             extractor_logger.error('`text_column` is not in DataFrame column. Got %s from %s', self.text_column, self.df.columns.tolist())
             raise ValueError(f"Invalid text column: `text_column` must be one of. {', '.join(list(self.df.columns))}")
+        if 'prediction' not in list(self.df.columns):
+            extractor_logger.error('`prediction` Column not found in DataFrame.')
+            raise ValueError('`prediction` Column not found in DataFrame.')
         extractor_logger.info('Got %d rows', len(self.df[self.df['prediction'] == sentiment]))
         return self.df[self.df['prediction'] == sentiment][self.text_column].str.lower().tolist()
     def __extract(self, sentiment:str):

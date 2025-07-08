@@ -3,7 +3,6 @@ from fastapi.responses import JSONResponse
 import io
 import os
 import pandas as pd
-# from config.settings import MAX_SIZE_BYTES, MAX_SIZE_MB
 from config.settings import settings
 
 async def validate_file(file: UploadFile, text_column:str):
@@ -22,7 +21,6 @@ async def validate_file(file: UploadFile, text_column:str):
         }
     try:
         contents = await file.read()
-        # if len(contents) > MAX_SIZE_BYTES:
         if len(contents) > settings.max_size_bytes:
             return {
                 'valid' : False,

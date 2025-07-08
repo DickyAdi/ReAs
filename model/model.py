@@ -161,11 +161,24 @@ class inference_model:
         }
     def __remove_emoticons(self,text):
         return re.sub(r'[^\w\s,.]', '', text)
+    def __clean_text(self, sentences:str | list[str]):
+        texts = []
+        for text in sentences:
+            if isinstance(text, str) and text.strip() != '':
+                # texts.append(self.__remove_emoticons(text))
+                cleaned = self.__remove_emoticons(text)
+                tokenized_texts = word_tokenize(cleaned)
+                # if len(tokenized_texts) < 2:
+                #     model_logger.error('Text should at least contain 2 words')
+                #     raise ValueError(f'Text should at least contain 2 words.')
+                texts.append(tokenized_texts)
+            else:
+                model_logger.error('Found invalid string after filtering, likely an empty white space or None type.')
+                raise ValueError(f'Found invalid string after filtering.')
+        return texts
     def __predict_prepare_data(self, sentence:list[str]):
-        texts = [t for t in sentence if isinstance(t, str) and t.strip() != '']
-        if not texts:
-            raise ValueError(f'No valid string after filtering.')
-        indexed = [self.__sentence2idx(t) for t in texts]
+        tokenized_texts = self.__clean_text(sentence)
+        indexed = [self.__sentence2idx(t) for t in tokenized_texts]
         lengths = torch.tensor([len(x) for x in indexed])
         max_length = max(lengths) if lengths.numel() > 0 else 0
         padded = [
@@ -176,13 +189,14 @@ class inference_model:
         return text_tensor, lengths
     def __sentence2idx(self, sentence):
         sentenceidx = []
-        for word in word_tokenize(sentence):
-            if re.match(r'^[a-zA-Z+$]', word):
+        for word in sentence:
+            if re.fullmatch(r"[a-zA-Z0-9.,!?;:'\"()\[\]\-{}@#$%&+/=_\\|^~`]+", word):
                 word = word.lower()
-            if word in self.vocab:
-                sentenceidx.append(self.vocab[word])
-            else:
-                sentenceidx.append(0)
+            # if word in self.vocab:
+            #     sentenceidx.append(self.vocab[word])
+            # else:
+            #     sentenceidx.append(0)
+            sentenceidx.append(self.vocab.get(word, 0))
         return sentenceidx
     def predict(self, texts:str | list[str]):
         is_single = isinstance(texts, str)
