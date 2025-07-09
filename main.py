@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+import gc
 
 from inference import predict
 from services.startup import load_model
@@ -70,7 +71,7 @@ async def extract(request: Request, text_column: str, file: UploadFile = File(..
     positive_topics = extractor.transform('Positive')
     negative_topics = extractor.transform('Negative')
 
-    return JSONResponse(status_code=status.HTTP_200_OK,
+    response_content = JSONResponse(status_code=status.HTTP_200_OK,
                         content={
                             'status' : 'success',
                             'code' : 200,
@@ -87,3 +88,8 @@ async def extract(request: Request, text_column: str, file: UploadFile = File(..
                                 'number_valid_rows' : int(len_valid_mask)
                             }
                         })
+    
+    del df, model, predictor, predicted_df, extractor, positive_topics, negative_topics
+    gc.collect()
+    
+    return response_content

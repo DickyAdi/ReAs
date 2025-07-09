@@ -1,6 +1,8 @@
 import pandas as pd
 import time
 from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
+import gc
 
 from model import model as model_module
 from .utils import get_stopwords
@@ -87,8 +89,6 @@ class topic_extractor:
         self.valid_sentiment = set(['Positive', 'Negative', 'Neutral'])
         self.df = None
         self.tfidf_vectorizer = TfidfVectorizer(stop_words=get_stopwords(), ngram_range=(2,2))
-        self.word_matrix = None
-        self.words = None
         self.text_column = text_column
         extractor_logger.info('topic_extractor initiated...')
     def __get_text_by_sentiment(self, sentiment:str) -> list:
@@ -111,17 +111,35 @@ class topic_extractor:
     def __extract(self, sentiment:str):
         extractor_logger.info('Extracting %s topics...', sentiment)
         text = self.__get_text_by_sentiment(sentiment)
-        if text:
-            extractor_logger.info('Starting extraction...')
-            self.word_matrix = self.tfidf_vectorizer.fit_transform(text)
-            self.words = self.tfidf_vectorizer.get_feature_names_out()
-            words_df = pd.DataFrame(self.word_matrix.toarray(), columns=self.words)
-            topics = pd.DataFrame({'word' : words_df.columns.tolist(), 'score' : words_df.std(axis=0).fillna(0).values.tolist()})
-            extractor_logger.info('Extraction completed with %d rows topics.', len(topics))
-            return topics
-        else:
-            extractor_logger.warning('Got empty %s sentiment in DataFrame.', sentiment)
+
+        if not text:
+            extractor_logger.warning('Got empty %s sentiment in DataFrame, skipping.', sentiment)
             return pd.DataFrame({'word' : [], 'score' : []})
+        if len(text) < 2:
+            extractor_logger.warning('Not enough row of text for %s sentiment, skipping.', sentiment)
+            return pd.DataFrame({'word' : [], 'score' : []})
+        docs = [doc for doc in text if len(doc.split()) >= 2]
+        if not docs:
+            extractor_logger.warning('No valid multi-word string for %s sentiment, skipping.', sentiment)
+            return pd.DataFrame({'word' : [], 'score' : []})
+        extractor_logger.info('Starting extraction...')
+        word_matrix = self.tfidf_vectorizer.fit_transform(docs)
+        words = self.tfidf_vectorizer.get_feature_names_out()
+        # start code memory saving
+        matrix_mean = word_matrix.mean(axis=0).A1
+        matrix_sq_mean = word_matrix.power(2).mean(axis=0).A1
+        std = np.sqrt(matrix_sq_mean - matrix_mean**2)
+        
+        # stop code memory saving
+        # words_df = pd.DataFrame(word_matrix.toarray(), columns=words)
+        # topics = pd.DataFrame({'word' : words_df.columns.tolist(), 'score' : words_df.std(axis=0).fillna(0).values.tolist()})
+
+        # addapting topics to memory saving code
+        topics = pd.DataFrame({'word' : words, 'score' : std})
+        del word_matrix, std, matrix_mean, matrix_sq_mean
+        gc.collect()
+        extractor_logger.info('Extraction completed with %d rows topics.', len(topics))
+        return topics
     def fit(self, df):
         extractor_logger.info('Starting fit...')
         self.df = df
