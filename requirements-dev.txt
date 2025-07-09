@@ -1,9 +1,6 @@
---index-url https://download.pytorch.org/whl/cpu
-torch
---extra-index-url https://pypi.org/simple
-lightning
 fastapi[standard]
 uvicorn[standard]
+lightning
 nltk
 numpy
 pandas
@@ -13,4 +10,5 @@ python-dotenv
 scikit_learn
 slowapi
 starlette
+torch
 torchmetrics
