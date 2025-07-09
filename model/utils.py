@@ -7,5 +7,5 @@ def load_vocab(file):
     return vocab
 
 def load_embedding_matrix(file):
-    embedding_matrix = np.load(file)
+    embedding_matrix = np.load(file, allow_pickle=True)
     return embedding_matrix
