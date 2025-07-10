@@ -4,9 +4,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from typing import List, Optional
 
-# MAX_SIZE_MB = int(os.getenv('MAX_CLIENT_UPLOAD_SIZE', 5))
-# MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
-# ALLOWED_ORIGINS = ['*'] if os.getenv('ENV', 'DEV') == 'DEV' else os.getenv('ALLOWED_ORIGINS')
 
 class Settings(BaseSettings):
     max_size_mb: int = Field(5, alias='MAX_CLIENT_UPLOAD_SIZE')
@@ -16,6 +13,14 @@ class Settings(BaseSettings):
     log_file:str = Field('reas_app.log', alias='LOG_FILE')
     log_size:int = Field(5, alias='LOG_SIZE')
     predict_chunk_size:int = Field(64, alias='PREDICT_CHUNK_SIZE')
+    concurrent_executor:int = Field(2, alias='CONCURRENT_EXECUTOR')
+    
+    @property
+    def concurrent_worker(self):
+        if self.env == 'DEV':
+            return 4
+        elif self.env == 'PROD':
+            return self.concurrent_executor
 
     @property
     def max_size_bytes(self):
