@@ -73,7 +73,7 @@ async def extract(request: Request, text_column: str, file: UploadFile = File(..
     model = request.app.state.model
     try:
         loop = asyncio.get_running_loop()
-        positive_topics, negative_topics, len_valid_mask = await loop.run_in_executor(request.app.state.executor, extraction_pipeline, model, df, text_column)
+        results = await loop.run_in_executor(request.app.state.executor, extraction_pipeline, model, df, text_column)
     except Exception as e:
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             content={
@@ -82,14 +82,6 @@ async def extract(request: Request, text_column: str, file: UploadFile = File(..
                                 'message' : f'Internal server error. {str(e)}'
                             })
 
-    # predictor = predict.batch_predictor(model, text_column)
-    # predicted_df, len_valid_mask = predictor.fit_transform(df)
-    # extractor = predict.topic_extractor(text_column)
-    # extractor.fit(predicted_df)
-    # positive_topics = extractor.transform('Positive')
-    # negative_topics = extractor.transform('Negative')
-
-
     response_content = JSONResponse(status_code=status.HTTP_200_OK,
                         content={
                             'status' : 'success',
@@ -97,18 +89,20 @@ async def extract(request: Request, text_column: str, file: UploadFile = File(..
                             'message' : 'Extraction successful',
                             'data' : {
                                 'positive' : {
-                                    'topics' : positive_topics.to_dict(orient='records'),
-                                    'count' : int(len(positive_topics))
+                                    'topics_std' : results['positive_topics_std'].to_dict(orient='records'),
+                                    'topics_mean' : results['positive_topics_mean'].to_dict(orient='records'),
+                                    'count' : int(len(results['positive_topics_std']))
                                 },
                                 'negative' : {
-                                    'topics' : negative_topics.to_dict(orient='records'),
-                                    'count' : int(len(negative_topics))
+                                    'topics_std' : results['negative_topics_std'].to_dict(orient='records'),
+                                    'topics_mean' : results['negative_topics_mean'].to_dict(orient='records'),
+                                    'count' : int(len(results['negative_topics_std']))
                                 },
-                                'number_valid_rows' : int(len_valid_mask)
+                                'number_valid_rows' : int(results['len_valid_mask'])
                             }
                         })
     
-    del df, model, positive_topics, negative_topics
+    del df, model, results
     gc.collect()
     
     return response_content

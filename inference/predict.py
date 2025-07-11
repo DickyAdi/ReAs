@@ -114,14 +114,14 @@ class topic_extractor:
 
         if not text:
             extractor_logger.warning('Got empty %s sentiment in DataFrame, skipping.', sentiment)
-            return pd.DataFrame({'word' : [], 'score' : []})
+            return pd.DataFrame(columns=['word', 'score']), pd.DataFrame(columns=['word', 'score'])
         if len(text) < 2:
             extractor_logger.warning('Not enough row of text for %s sentiment, skipping.', sentiment)
-            return pd.DataFrame({'word' : [], 'score' : []})
+            return pd.DataFrame(columns=['word', 'score']), pd.DataFrame(columns=['word', 'score'])
         docs = [doc for doc in text if len(doc.split()) >= 2]
         if not docs:
             extractor_logger.warning('No valid multi-word string for %s sentiment, skipping.', sentiment)
-            return pd.DataFrame({'word' : [], 'score' : []})
+            return pd.DataFrame(columns=['word', 'score']), pd.DataFrame(columns=['word', 'score'])
         extractor_logger.info('Starting extraction...')
         word_matrix = self.tfidf_vectorizer.fit_transform(docs)
         words = self.tfidf_vectorizer.get_feature_names_out()
@@ -135,11 +135,12 @@ class topic_extractor:
         # topics = pd.DataFrame({'word' : words_df.columns.tolist(), 'score' : words_df.std(axis=0).fillna(0).values.tolist()})
 
         # addapting topics to memory saving code
-        topics = pd.DataFrame({'word' : words, 'score' : std})
+        topics_std = pd.DataFrame({'word' : words, 'score' : std})
+        topics_mean = pd.DataFrame({'word' : words, 'score' : matrix_mean})
         del word_matrix, std, matrix_mean, matrix_sq_mean
         gc.collect()
-        extractor_logger.info('Extraction completed with %d rows topics.', len(topics))
-        return topics
+        extractor_logger.info('Extraction completed with %d rows topics.', len(topics_std))
+        return topics_std, topics_mean
     def fit(self, df):
         extractor_logger.info('Starting fit...')
         self.df = df
@@ -148,8 +149,8 @@ class topic_extractor:
         if df:
             self.df = df
             extractor_logger.info('`df` is provided, initializing.')
-        topics = self.__extract(sentiment)
-        return topics
+        topics_std, topics_mean = self.__extract(sentiment)
+        return topics_std, topics_mean
     def fit_transform(self, df, sentiment):
         extractor_logger.info('Starting fit_transform...')
         self.fit(df)
