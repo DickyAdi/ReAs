@@ -1,6 +1,7 @@
 import pandas as pd
 import time
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import gc
 
@@ -88,6 +89,7 @@ class topic_extractor:
     def __init__(self, text_column: str):
         self.valid_sentiment = set(['Positive', 'Negative', 'Neutral'])
         self.df = None
+        self.scaler = MinMaxScaler()
         self.tfidf_vectorizer = TfidfVectorizer(stop_words=get_stopwords(), ngram_range=(2,2))
         self.text_column = text_column
         extractor_logger.info('topic_extractor initiated...')
@@ -126,21 +128,25 @@ class topic_extractor:
         word_matrix = self.tfidf_vectorizer.fit_transform(docs)
         words = self.tfidf_vectorizer.get_feature_names_out()
         # start code memory saving
+        count_matrix = (word_matrix > 0).sum(axis=0).A1
         matrix_mean = word_matrix.mean(axis=0).A1
         matrix_sq_mean = word_matrix.power(2).mean(axis=0).A1
         std = np.sqrt(matrix_sq_mean - matrix_mean**2)
-        
+        score = matrix_mean * std
+        score = self.scaler.fit_transform(score.reshape(-1, 1)).flatten()
+        score_trend = score * (count_matrix / len(self.df))
+        score_trend = self.scaler.fit_transform(score_trend.reshape(-1,1)).flatten()
         # stop code memory saving
         # words_df = pd.DataFrame(word_matrix.toarray(), columns=words)
         # topics = pd.DataFrame({'word' : words_df.columns.tolist(), 'score' : words_df.std(axis=0).fillna(0).values.tolist()})
 
         # addapting topics to memory saving code
-        topics_std = pd.DataFrame({'word' : words, 'score' : std})
-        topics_mean = pd.DataFrame({'word' : words, 'score' : matrix_mean})
+        trend_topics = pd.DataFrame({'word' : words, 'score' : score_trend})
+        frequent_topics = pd.DataFrame({'word' : words, 'score' : score})
         del word_matrix, std, matrix_mean, matrix_sq_mean
         gc.collect()
-        extractor_logger.info('Extraction completed with %d rows topics.', len(topics_std))
-        return topics_std, topics_mean
+        extractor_logger.info('Extraction completed with %d rows topics.', len(trend_topics))
+        return trend_topics, frequent_topics
     def fit(self, df):
         extractor_logger.info('Starting fit...')
         self.df = df
@@ -149,9 +155,11 @@ class topic_extractor:
         if df:
             self.df = df
             extractor_logger.info('`df` is provided, initializing.')
-        topics_std, topics_mean = self.__extract(sentiment)
-        return topics_std, topics_mean
+        trend_topics, frequent_topics = self.__extract(sentiment)
+        return trend_topics, frequent_topics
     def fit_transform(self, df, sentiment):
         extractor_logger.info('Starting fit_transform...')
         self.fit(df)
         return self.transform(sentiment=sentiment)
+    def count_sentiment(self, sentiment:str) -> int:
+        return int(len(self.df[self.df['prediction'] == sentiment.capitalize()]))

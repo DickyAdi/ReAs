@@ -89,14 +89,14 @@ async def extract(request: Request, text_column: str, file: UploadFile = File(..
                             'message' : 'Extraction successful',
                             'data' : {
                                 'positive' : {
-                                    'topics_std' : results['positive_topics_std'].to_dict(orient='records'),
-                                    'topics_mean' : results['positive_topics_mean'].to_dict(orient='records'),
-                                    'count' : int(len(results['positive_topics_std']))
+                                    'trend_topics' : results['positive_trend_topics'].to_dict(orient='records'),
+                                    'frequent_topics' : results['positive_frequent_topics'].to_dict(orient='records'),
+                                    'count' : results['n_positive']
                                 },
                                 'negative' : {
-                                    'topics_std' : results['negative_topics_std'].to_dict(orient='records'),
-                                    'topics_mean' : results['negative_topics_mean'].to_dict(orient='records'),
-                                    'count' : int(len(results['negative_topics_std']))
+                                    'trend_topics' : results['negative_trend_topics'].to_dict(orient='records'),
+                                    'frequent_topics' : results['negative_frequent_topics'].to_dict(orient='records'),
+                                    'count' : results['n_negative']
                                 },
                                 'number_valid_rows' : int(results['len_valid_mask'])
                             }
