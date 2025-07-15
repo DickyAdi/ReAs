@@ -52,5 +52,5 @@ jobs:
         run: |
           docker build --platform linux/amd64 \
             -t ghcr.io/${{ steps.lower-owner.outputs.owner }}/reas-backend:latest \
-            -f .Dockerfile .
+            -f Dockerfile .
           docker push ghcr.io/${{ steps.lower-owner.outputs.owner }}/reas-backend:latest
