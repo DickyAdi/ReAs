@@ -46,6 +46,6 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           docker build --platform linux/amd64 \
-            -t ghcr.io/${{ github.actor.lower() }}/reas-backend:latest \
+            -t ghcr.io/${{ github.actor }}/reas-backend:latest \
             -f .Dockerfile .
-          docker push ghcr.io/${{ github.actor.lower() }}/reas-backend:latest
+          docker push ghcr.io/${{ github.actor }}/reas-backend:latest
