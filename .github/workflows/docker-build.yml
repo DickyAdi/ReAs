@@ -11,6 +11,11 @@ jobs:
       fail-fast: true
 
     steps:
+      - id: lower-owner
+        name: Owner to lowercase
+        run: |
+          echo "owner=${GITHUB_REPOSITORY_OWNER@L}" >> $GITHUB_OUTPUT
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -46,6 +51,6 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           docker build --platform linux/amd64 \
-            -t ghcr.io/${{ github.actor }}/reas-backend:latest \
+            -t ghcr.io/${{ steps.lower-owner.outputs.owner }}/reas-backend:latest \
             -f .Dockerfile .
-          docker push ghcr.io/${{ github.actor }}/reas-backend:latest
+          docker push ghcr.io/${{ steps.lower-owner.outputs.owner }}/reas-backend:latest
