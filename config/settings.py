@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     jwt_secret_key:str = Field('defaultsecretkeyeventhisisnotpossibletohappenedtho', alias="JWT_SECRET_KEY")
     jwt_algorithm:str = Field('HS256', alias='JWT_ALGORITHM')
 
+    @computed_field
+    @property
+    def db_log(self) -> bool:
+        if self.env == "DEV":
+            return True
+        else:
+            return False
+
     @property
     def concurrent_worker(self):
         if self.env == 'DEV':
