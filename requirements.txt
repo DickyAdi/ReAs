@@ -15,3 +15,10 @@ slowapi
 starlette
 torchmetrics
 threadpoolctl
+sqlalchemy[asyncio]
+psycopg[binary]
+greenlet
+bcrypt
+pyjwt
+Authlib
+httpx

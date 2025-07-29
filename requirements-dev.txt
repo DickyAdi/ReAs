@@ -12,3 +12,11 @@ slowapi
 starlette
 torch
 torchmetrics
+alembic
+sqlalchemy[asyncio]
+psycopg[binary]
+greenlet
+bcrypt
+pyjwt
+Authlib
+httpx
