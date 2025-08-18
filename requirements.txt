@@ -22,3 +22,5 @@ bcrypt
 pyjwt
 Authlib
 httpx
+aiosmtplib
+ua-parser[regex]

@@ -4,11 +4,13 @@ import asyncio
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy import text
 
 from infrastructure.db.db import Base
 from config.settings import settings
 # from infrastructure.db.models import user_model  # Make sure models are imported so metadata is populated
-import infrastructure.db.models
+# import infrastructure.db.models
+from infrastructure.db.models import *
 
 # Alembic Config object
 config = context.config
@@ -47,7 +49,17 @@ async def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
+    x_args = context.get_x_argument(as_dictionary=True)
+    isSeed = x_args.get('seed', "")
+    isRefresh = x_args.get('refresh', "")
     async with connectable.connect() as connection:
+        if isRefresh == 'true':
+            print('[SEED] Refreshing database, dropping all tables.')
+            await connection.run_sync(Base.metadata.drop_all)
+            await connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
+            await connection.commit()
+            print('[SEED] Refresh finished.')
+
         def do_migrations(sync_connection):
             context.configure(
                 connection=sync_connection,
@@ -59,6 +71,12 @@ async def run_migrations_online() -> None:
                 context.run_migrations()
 
         await connection.run_sync(do_migrations)
+
+        if isSeed == 'true':
+            from seeder import run
+            # async with connectable.connect() as connection:
+            await run(connection=connection)
+            # await connectable.dispose()
 
     await connectable.dispose()
 

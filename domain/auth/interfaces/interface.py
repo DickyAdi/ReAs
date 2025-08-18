@@ -11,3 +11,9 @@ class AuthInterface(ABC):
     @abstractmethod
     def verify_password(self, user_password, db_password):
         pass
+    @abstractmethod
+    def decode_token(self, token):
+        pass
+    @abstractmethod
+    def hash(self, value):
+        pass

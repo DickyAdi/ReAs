@@ -1,0 +1,2 @@
+from .reset_password import ResetPasswordTemplate
+from .verify_email import VerifyEmailTemplate

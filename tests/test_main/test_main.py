@@ -1,19 +1,22 @@
 from fastapi.testclient import TestClient
 import io
 
-from main import app
-from services import startup
+from app._main import app
+from _services import startup
+
 
 class DummyModel:
     def __init__(self):
         self.n = 1
+
     def predict(self, text):
         if self.n % 2 == 0:
             self.n += 1
-            return 'Positive', None
+            return "Positive", None
         else:
             self.n += 1
-            return 'Negative', None
+            return "Negative", None
+
 
 def test_main(monkeypatch):
     # monkeypatch.setattr(startup, "load_model", lambda: DummyModel())
@@ -24,7 +27,7 @@ def test_main(monkeypatch):
         client.app.state.model = DummyModel()
         response = client.post(
             "/extract?text_column=review",
-            files={'file' : ('test.csv', io.BytesIO(content), 'text/csv')}
-            )
+            files={"file": ("test.csv", io.BytesIO(content), "text/csv")},
+        )
         assert response.status_code == 200
-        assert 'positive' in response.json()['data']
+        assert "positive" in response.json()["data"]

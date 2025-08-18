@@ -194,3 +194,4 @@ cython_debug/
 .cursorindexingignoreartifacts/
 .DS_Store
 notebooks/
+reset/

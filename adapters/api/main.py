@@ -1,4 +1,6 @@
+# ruff: noqa: E402
 from dotenv import load_dotenv
+
 load_dotenv()
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
@@ -11,13 +13,15 @@ from .core.handler.exception import rate_limit_handler
 from .middleware import LoggingMiddleware, CORSMiddleware
 from config.settings import settings
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.model = load_model()
     app.state.executor = get_executor()
     yield
-    if hasattr(app.state, 'model'):
+    if hasattr(app.state, "model"):
         del app.state.model
+
 
 app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
@@ -26,9 +30,9 @@ app.add_middleware(LoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
-    allow_credentials=False,
-    allow_methods=['POST', 'GET'],
-    allow_headers=['*']
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(router)

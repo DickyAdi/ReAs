@@ -8,3 +8,4 @@ tests/
 .env
 *.pyc
 .DS_Store
+reset/

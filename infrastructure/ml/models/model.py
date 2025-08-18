@@ -3,7 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import lightning as L
 from torchmetrics.classification import MulticlassAccuracy, MulticlassF1Score
-from torchmetrics.functional.classification import multiclass_accuracy, multiclass_f1_score
+from torchmetrics.functional.classification import (
+    multiclass_accuracy,
+    multiclass_f1_score,
+)
+
 
 class attention(nn.Module):
     def __init__(self, hidden_size):
@@ -11,27 +15,56 @@ class attention(nn.Module):
         self.attention_weights = nn.Linear(hidden_size * 2, hidden_size * 2, bias=False)
         self.context_vector = nn.Linear(hidden_size * 2, 1, bias=False)
 
-    def forward(self, lstm_output):        
-        scores = self.attention_weights(lstm_output)  # Shape: (batch_size, seq_len, hidden_size * 2)
+    def forward(self, lstm_output):
+        scores = self.attention_weights(
+            lstm_output
+        )  # Shape: (batch_size, seq_len, hidden_size * 2)
         scores = torch.tanh(scores)  # Apply non-linearity
 
         scores = self.context_vector(scores)  # Shape: (batch_size, seq_len, 1)
         scores = scores.squeeze(-1)  # Shape: (batch_size, seq_len)
-        
+
         attention_weights = F.softmax(scores, dim=-1)  # Shape: (batch_size, seq_len)
 
-        context = torch.bmm(attention_weights.unsqueeze(1), lstm_output)  # Shape: (batch_size, 1, hidden_size * 2)
+        context = torch.bmm(
+            attention_weights.unsqueeze(1), lstm_output
+        )  # Shape: (batch_size, 1, hidden_size * 2)
         context = context.squeeze(1)  # Shape: (batch_size, hidden_size * 2)
 
         return context, attention_weights
 
+
 class biLSTM_sentiment(nn.Module):
-    def __init__(self, embedding_matrix, output_dim, n_layers, hidden_dim=512, use_attention=True, bidirectional=True, dropout=0, freeze_embedding=False) -> None:
+    def __init__(
+        self,
+        embedding_matrix,
+        output_dim,
+        n_layers,
+        hidden_dim=512,
+        use_attention=True,
+        bidirectional=True,
+        dropout=0,
+        freeze_embedding=False,
+    ) -> None:
         super(biLSTM_sentiment, self).__init__()
         self.bidirectional = bidirectional
-        self.embedding = nn.Embedding.from_pretrained(torch.FloatTensor(embedding_matrix), freeze=freeze_embedding, padding_idx=0)
-        self.lstm = nn.LSTM(embedding_matrix.shape[1], hidden_dim, num_layers=n_layers, bidirectional=bidirectional, batch_first=True)
-        self.lstm2 = nn.LSTM(hidden_dim * 2, hidden_dim//2, num_layers=n_layers, bidirectional=bidirectional, batch_first=True)
+        self.embedding = nn.Embedding.from_pretrained(
+            torch.FloatTensor(embedding_matrix), freeze=freeze_embedding, padding_idx=0
+        )
+        self.lstm = nn.LSTM(
+            embedding_matrix.shape[1],
+            hidden_dim,
+            num_layers=n_layers,
+            bidirectional=bidirectional,
+            batch_first=True,
+        )
+        self.lstm2 = nn.LSTM(
+            hidden_dim * 2,
+            hidden_dim // 2,
+            num_layers=n_layers,
+            bidirectional=bidirectional,
+            batch_first=True,
+        )
         if bidirectional:
             self.fc = nn.Linear(hidden_dim * 2, output_dim)
         else:
@@ -40,11 +73,14 @@ class biLSTM_sentiment(nn.Module):
         self.use_attention = use_attention
         self.dropout = nn.Dropout(dropout)
         self.hidden_dim = hidden_dim
+
     def forward(self, text, text_lengths):
         embedded = self.embedding(text)
-        text_lengths = text_lengths.to('cpu')
+        text_lengths = text_lengths.to("cpu")
 
-        packed_embedded = nn.utils.rnn.pack_padded_sequence(embedded, text_lengths, batch_first=True, enforce_sorted=False)
+        packed_embedded = nn.utils.rnn.pack_padded_sequence(
+            embedded, text_lengths, batch_first=True, enforce_sorted=False
+        )
         packed_out, (h, c) = self.lstm(packed_embedded)
         lstm_out, _ = nn.utils.rnn.pad_packed_sequence(packed_out, batch_first=True)
 
@@ -57,18 +93,46 @@ class biLSTM_sentiment(nn.Module):
         lstm2_out, _ = self.lstm2(attention_context)
 
         if self.bidirectional:
-            h = torch.cat((lstm2_out[:, -1, :self.hidden_dim], lstm2_out[:, 0, :self.hidden_dim]), dim=1)
+            h = torch.cat(
+                (
+                    lstm2_out[:, -1, : self.hidden_dim],
+                    lstm2_out[:, 0, : self.hidden_dim],
+                ),
+                dim=1,
+            )
         else:
-            h = h[-1,:,:]
+            h = h[-1, :, :]
 
         out = self.fc(self.dropout(h))
         return out, attention_weights
 
+
 class biLSTM_Attention(L.LightningModule):
-    def __init__(self, lr, num_classes, embedding_matrix, hidden_dim=512, dropout=0, use_attention=True, bidirectional=True,optim_decay=0, class_weight=None, isMPS = True, freeze_embedding=False):
+    def __init__(
+        self,
+        lr,
+        num_classes,
+        embedding_matrix,
+        hidden_dim=512,
+        dropout=0,
+        use_attention=True,
+        bidirectional=True,
+        optim_decay=0,
+        class_weight=None,
+        isMPS=True,
+        freeze_embedding=False,
+    ):
         super().__init__()
         self.freeze_embedding = freeze_embedding
-        self.model = biLSTM_sentiment(embedding_matrix, 3, 1, dropout=dropout, freeze_embedding=freeze_embedding, use_attention=use_attention, bidirectional=bidirectional)
+        self.model = biLSTM_sentiment(
+            embedding_matrix,
+            3,
+            1,
+            dropout=dropout,
+            freeze_embedding=freeze_embedding,
+            use_attention=use_attention,
+            bidirectional=bidirectional,
+        )
         self.isMPS = isMPS
         if not isMPS:
             self.accuracy = MulticlassAccuracy(num_classes)
@@ -82,10 +146,12 @@ class biLSTM_Attention(L.LightningModule):
         self.optim_decay = optim_decay
         self.use_attention = use_attention
         self.save_hyperparameters()
+
     def forward(self, text, text_lengths):
         # text = text.to('cpu')
-        # text_lengths 
+        # text_lengths
         return self.model(text, text_lengths)
+
     def training_step(self, batch, batch_idx):
         text, text_lengths, label = batch
         if self.use_attention:
@@ -95,14 +161,27 @@ class biLSTM_Attention(L.LightningModule):
         loss = self.criterion(logits, label)
         _, preds = torch.max(logits, dim=1)
         if self.isMPS:
-            temp_preds = preds.to('cpu')
-            temp_label = label.to('cpu')
-            log_values = {'train_acc' : multiclass_accuracy(temp_preds, temp_label, num_classes=self.num_classes), 'train_F1Score' : multiclass_f1_score(temp_preds, temp_label, num_classes=self.num_classes), 'train_loss' : loss}
+            temp_preds = preds.to("cpu")
+            temp_label = label.to("cpu")
+            log_values = {
+                "train_acc": multiclass_accuracy(
+                    temp_preds, temp_label, num_classes=self.num_classes
+                ),
+                "train_F1Score": multiclass_f1_score(
+                    temp_preds, temp_label, num_classes=self.num_classes
+                ),
+                "train_loss": loss,
+            }
             del temp_preds, temp_label
         else:
-            log_values = {'train_acc' : self.accuracy(preds, label), 'train_F1Score' : self.F1Score(preds, label), 'train_loss' : loss}
+            log_values = {
+                "train_acc": self.accuracy(preds, label),
+                "train_F1Score": self.F1Score(preds, label),
+                "train_loss": loss,
+            }
         self.log_dict(log_values, prog_bar=True, on_step=False, on_epoch=True)
         return loss
+
     def validation_step(self, batch, batch_idx):
         text, text_lengths, label = batch
         if self.use_attention:
@@ -112,16 +191,31 @@ class biLSTM_Attention(L.LightningModule):
         loss = self.criterion(logits, label)
         _, preds = torch.max(logits, dim=1)
         if self.isMPS:
-            temp_preds = preds.to('cpu')
-            temp_label = label.to('cpu')
-            log_values = {'val_acc' : multiclass_accuracy(temp_preds, temp_label, num_classes=self.num_classes), 'val_F1Score' : multiclass_f1_score(temp_preds, temp_label, num_classes=self.num_classes), 'val_loss' : loss}
+            temp_preds = preds.to("cpu")
+            temp_label = label.to("cpu")
+            log_values = {
+                "val_acc": multiclass_accuracy(
+                    temp_preds, temp_label, num_classes=self.num_classes
+                ),
+                "val_F1Score": multiclass_f1_score(
+                    temp_preds, temp_label, num_classes=self.num_classes
+                ),
+                "val_loss": loss,
+            }
             del temp_label, temp_preds
         else:
-            log_values = {'val_acc' : self.accuracy(preds, label), 'val_F1Score' : self.F1Score(preds, label), 'val_loss' : loss}
+            log_values = {
+                "val_acc": self.accuracy(preds, label),
+                "val_F1Score": self.F1Score(preds, label),
+                "val_loss": loss,
+            }
         self.log_dict(log_values, prog_bar=True, on_step=False, on_epoch=True)
         return loss
+
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr = self.learning_rate, weight_decay=self.optim_decay)
+        optimizer = torch.optim.Adam(
+            self.parameters(), lr=self.learning_rate, weight_decay=self.optim_decay
+        )
         # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, mode='min', min_lr=0.0000001)
         # return {
         #     'optimizer' : optimizer,
