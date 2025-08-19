@@ -27,7 +27,7 @@ class SubscriptionsApplication:
             Subscription: Infrastructure layer subscriptions ORM instances.
         """
         subs = await self.subscription_service.get_subscriptions_by_user_id(
-            db=db, user_id=user_id, isActive=is_latestActive
+            db=db, user_id=user_id, is_latestActive=is_latestActive
         )
         return subs
 

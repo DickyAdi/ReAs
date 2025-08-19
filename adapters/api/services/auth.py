@@ -15,6 +15,7 @@ from infrastructure.mail import MailtrapService
 from infrastructure.db.services import UserService
 from domain.enums.users import Role, ROLE_LEVEL
 from domain.enums.tiers import Tier, TIER_LEVEL
+from domain.exceptions import InvalidCredentials, InvalidAuthenticateToken
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/auth/token", scheme_name="oauth2_scheme"
@@ -84,7 +85,23 @@ def get_user_from_scheme(schema: Optional[Role] = Role.user, with_sub: bool = Fa
         db: AsyncSession = Depends(get_db),
         flow: UserAuthenticateFlow = Depends(get_user_auth_flow),
     ):
-        return await flow(db=db, token=token, with_sub=with_sub)
+        try:
+            user = await flow(db=db, token=token, with_sub=with_sub)
+            return user
+        except InvalidCredentials:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token."
+            )
+        except InvalidAuthenticateToken:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token version missmatch.",
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Something went wrong: {str(e)}",
+            )
 
     return get_current_user
 
@@ -130,7 +147,23 @@ def get_user_from_any_schema(with_sub: bool = False):
         db: AsyncSession = Depends(get_db),
         flow: UserAuthenticateFlow = Depends(get_user_auth_flow),
     ):
-        return await flow(db=db, token=token, with_sub=with_sub)
+        try:
+            user = await flow(db=db, token=token, with_sub=with_sub)
+            return user
+        except InvalidCredentials:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token."
+            )
+        except InvalidAuthenticateToken:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token version missmatch.",
+            )
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Something went wrong",
+            )
 
     return get_current_user
 
