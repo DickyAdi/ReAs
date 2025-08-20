@@ -1,4 +1,8 @@
+# ruff: noqa:E402
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, computed_field, PostgresDsn
