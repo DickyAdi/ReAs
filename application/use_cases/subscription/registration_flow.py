@@ -15,6 +15,11 @@ from domain.enums.subscriptions import SubscriptionPlan, SubscriptionStatus
 from domain.enums.tiers_pricing import Currency
 from domain.enums.payments import PaymentMethod, PaymentStatus
 from domain.enums.transactions import TransactionStatus
+from domain.exceptions import (
+    UniqueConstraintViolationError,
+    EmailAlreadyExistError,
+    UserNameAlreadyExistError,
+)
 
 from .base_class import BaseSubscriptionFlow
 
@@ -78,21 +83,29 @@ class UserRegistrationFlow(BaseSubscriptionFlow):
             role=role,
             provider=provider,
         )
-        created_user = await self.user_service.create_user(
-            db=db, user=new_user, commit=False
-        )
-        new_subs = await self.issue_subscription(  # noqa
-            db=db,
-            tier=Tier.Base,
-            cycle=SubscriptionPlan.free,
-            currency=Currency.idr,
-            user_id=created_user.id,
-            idempotency_key=idempotency_key,
-            method=PaymentMethod.local,
-            payment_status=PaymentStatus.success,
-            trx_status=TransactionStatus.paid,
-            subs_status=SubscriptionStatus.active,
-        )
-        if commit:
-            await db.commit()
+        try:
+            created_user = await self.user_service.create_user(
+                db=db, user=new_user, commit=False
+            )
+            _new_subs = await self.issue_subscription(
+                db=db,
+                tier=Tier.Base,
+                cycle=SubscriptionPlan.free,
+                currency=Currency.idr,
+                user_id=created_user.id,
+                idempotency_key=idempotency_key,
+                method=PaymentMethod.local,
+                payment_status=PaymentStatus.success,
+                trx_status=TransactionStatus.paid,
+                subs_status=SubscriptionStatus.active,
+            )
+            if commit:
+                await db.commit()
+        except UniqueConstraintViolationError as e:
+            error_field = e.details["field_name"]
+            error_field_value = e.details["field_value"]
+            if error_field == "name":
+                raise UserNameAlreadyExistError(name=error_field_value)
+            elif error_field == "email":
+                raise EmailAlreadyExistError(email=error_field_value)
         return created_user

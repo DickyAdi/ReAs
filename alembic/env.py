@@ -1,3 +1,4 @@
+# ruff: noqa
 from logging.config import fileConfig
 import asyncio
 
@@ -8,6 +9,7 @@ from sqlalchemy import text
 
 from infrastructure.db.db import Base
 from config.settings import settings
+
 # from infrastructure.db.models import user_model  # Make sure models are imported so metadata is populated
 # import infrastructure.db.models
 from infrastructure.db.models import *
@@ -50,15 +52,15 @@ async def run_migrations_online() -> None:
     )
 
     x_args = context.get_x_argument(as_dictionary=True)
-    isSeed = x_args.get('seed', "")
-    isRefresh = x_args.get('refresh', "")
+    isSeed = x_args.get("seed", "")
+    isRefresh = x_args.get("refresh", "")
     async with connectable.connect() as connection:
-        if isRefresh == 'true':
-            print('[SEED] Refreshing database, dropping all tables.')
+        if isRefresh == "true":
+            print("[SEED] Refreshing database, dropping all tables.")
             await connection.run_sync(Base.metadata.drop_all)
             await connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
             await connection.commit()
-            print('[SEED] Refresh finished.')
+            print("[SEED] Refresh finished.")
 
         def do_migrations(sync_connection):
             context.configure(
@@ -72,8 +74,9 @@ async def run_migrations_online() -> None:
 
         await connection.run_sync(do_migrations)
 
-        if isSeed == 'true':
+        if isSeed == "true":
             from seeder import run
+
             # async with connectable.connect() as connection:
             await run(connection=connection)
             # await connectable.dispose()

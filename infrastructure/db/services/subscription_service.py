@@ -1,8 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional
 
 from ..models.subscriptions_model import Subscriptions
+from ...db.error_mapper import DatabaseErrorMapper
 
 from domain.entities.subscriptions.interfaces import SubscriptionInterface
 from domain.entities.subscriptions import SubscriptionEntity
@@ -32,12 +34,15 @@ class SubscriptionService(SubscriptionInterface):
             Subscriptions: Subscriptions ORM instance.
         """
         new_sub = Subscriptions.from_entity(subscription=subscription)
-        db.add(new_sub)
-        await db.flush()
-        if commit:
-            await db.commit()
-            await db.refresh(new_sub)
-        return new_sub
+        try:
+            db.add(new_sub)
+            await db.flush()
+            if commit:
+                await db.commit()
+                await db.refresh(new_sub)
+            return new_sub
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
 
     async def get_subscriptions(self, db, offset, limit):
         pass
@@ -59,7 +64,10 @@ class SubscriptionService(SubscriptionInterface):
         stmt = select(Subscriptions).where(Subscriptions.user_id == user_id)
         if is_latestActive:
             stmt = stmt.order_by(Subscriptions.created_at.desc()).limit(1)
-        res = await db.execute(stmt)
+        try:
+            res = await db.execute(stmt)
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
         subs = res.scalars()
         if is_latestActive:
             return subs.first()

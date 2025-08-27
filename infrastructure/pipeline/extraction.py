@@ -4,8 +4,8 @@ from application.pipeline.extraction import (
     ExtractionPipelineFlow,
     ExtractionPipelineDictType,
 )
-from application.predict_service import PredictService
-from application.extract_service import ExtractService
+from app.application._predict_service import PredictService
+from app.application._extract_service import ExtractService
 from infrastructure.ml.inference import inferenceModel
 from infrastructure.topics.interface.extract import ExtractTopics
 

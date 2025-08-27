@@ -1,7 +1,6 @@
-from fastapi import APIRouter, status, Depends, HTTPException, Query
+from fastapi import APIRouter, status, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError
 
 
 from application.user import UserApplication
@@ -9,11 +8,7 @@ from application.auth import AuthApplication
 from infrastructure.db import get_db, User
 from loggers.log import get_loggers
 from domain.enums.users import AuthProvider, Role
-from domain.exceptions import (
-    UserNotFoundException,
-    InvalidEmailVerifyToken,
-    EmailAlreadyValidated,
-)
+
 from application.use_cases.subscription import UserRegistrationFlow
 from application.use_cases.authentication import SendVerifyEmailFlow, VerifyEmailFlow
 from application.subscriptions import SubscriptionsApplication
@@ -45,43 +40,18 @@ async def register(
     db: AsyncSession = Depends(get_db),
     flow: UserRegistrationFlow = Depends(get_registration_flow),
 ):
-    try:
-        new_acc = await flow(
-            db=db,
-            name=request.name,
-            email=request.email,
-            password=request.password,
-            provider=AuthProvider.local,
-            idempotency_key=request.idempotency_key,
-            is_validated=False,
-        )
-        if new_acc:
-            return JSONResponse(
-                status_code=status.HTTP_200_OK, content={"message": "success."}
-            )
-    except IntegrityError:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Email or name already exists."
-        )
-    except OperationalError as e:
-        logger.critical(
-            "Cannot reach database, check database configuration. %s", str(e)
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error.",
-        )
-    except InterfaceError:
-        logger.error("Database adapter error cannot finish task.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error.",
-        )
-    except Exception as e:
-        logger.error("Something went wrong %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong.",
+    new_acc = await flow(
+        db=db,
+        name=request.name,
+        email=request.email,
+        password=request.password,
+        provider=AuthProvider.local,
+        idempotency_key=request.idempotency_key,
+        is_validated=False,
+    )
+    if new_acc:
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, content={"message": "success."}
         )
 
 
@@ -104,15 +74,9 @@ async def edit_me(
     current_user: User = Depends(get_user_from_scheme),
     flow: UserApplication = Depends(get_user_application),
 ):
-    # flow = UserApplication(service=UserService(), auth=AuthService())
-    updated_user = await flow.edit_user_info(
+    _updated_user = await flow.edit_user_info(
         db=db, user=current_user, changed_data=request
     )
-    if not updated_user:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong.",
-        )
     return JSONResponse(
         status_code=status.HTTP_200_OK, content={"message": "User edited."}
     )
@@ -123,22 +87,7 @@ async def verify_email(
     current_user: User = Depends(get_user_from_scheme),
     flow: SendVerifyEmailFlow = Depends(get_send_verify_email_flow),
 ):
-    try:
-        sent = await flow(user=current_user)
-    except UserNotFoundException:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Requester email not found."
-        )
-    except EmailAlreadyValidated:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User email is already validated.",
-        )
-    if not sent:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong",
-        )
+    _sent = await flow(user=current_user)
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={"message": "Email sent, check user mailbox."},
@@ -151,26 +100,7 @@ async def decode_email_token(
     db: AsyncSession = Depends(get_db),
     flow: VerifyEmailFlow = Depends(get_verify_email_flow),
 ):
-    try:
-        updated_user = await flow(db=db, token=token)
-    except InvalidEmailVerifyToken:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token"
-        )
-    except UserNotFoundException:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong",
-        )
-    if not updated_user:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="User not validated",
-        )
+    _updated_user = await flow(db=db, token=token)
     return JSONResponse(
         status_code=status.HTTP_200_OK, content={"message": "User validated."}
     )
@@ -183,19 +113,10 @@ async def change_email(
     db: AsyncSession = Depends(get_db),
     flow: UserApplication = Depends(get_user_application),
 ):
-    if request.email == current_user.email:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Request email is the same."
-        )
     changed_email = request.email
-    edited = await flow.change_user_email(
+    _edited = await flow.change_user_email(
         db=db, changed_email_value=changed_email, user=current_user
     )
-    if not edited:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong",
-        )
     return JSONResponse(
         status_code=status.HTTP_200_OK, content={"message": "Email changed."}
     )
@@ -210,14 +131,9 @@ async def change_password(
     auth_app: AuthApplication = Depends(get_auth_application),
 ):
     hashed_changed_password = auth_app.hash_password(value=request.password)
-    edited = await user_app.change_user_password(
+    _edited = await user_app.change_user_password(
         db=db, user=current_user, hashed_changed_password_value=hashed_changed_password
     )
-    if not edited:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong",
-        )
     return JSONResponse(
         status_code=status.HTTP_200_OK, content={"message": "Password changed."}
     )

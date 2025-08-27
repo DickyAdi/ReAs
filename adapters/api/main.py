@@ -10,8 +10,10 @@ from .routes import router
 from .context.startup import load_model, get_executor
 from .context.limiter import limiter
 from .core.handler.exception import rate_limit_handler
+from .core.handler import error_handler, unexpected_exception_handler
 from .middleware import LoggingMiddleware, CORSMiddleware
 from config.settings import settings
+from domain.exceptions import BaseError
 
 
 @asynccontextmanager
@@ -37,3 +39,5 @@ app.add_middleware(
 
 app.include_router(router)
 app.add_exception_handler(RateLimitExceeded, handler=rate_limit_handler)
+app.add_exception_handler(BaseError, handler=error_handler)
+app.add_exception_handler(Exception, handler=unexpected_exception_handler)

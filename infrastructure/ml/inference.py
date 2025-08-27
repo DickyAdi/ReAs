@@ -103,7 +103,13 @@ class inferenceModel(inferenceInterface):
             sentenceidx.append(self.vocab.get(word, 0))
         return sentenceidx
 
-    def predict(self, texts: str | list[str]) -> str | list[str]:
+    def _format_output(self, texts: list[str], sentiments: list[str]) -> list[dict]:
+        return [
+            {"text": text, "sentiment": sentiment}
+            for text, sentiment in zip(texts, sentiments)
+        ]
+
+    def predict(self, texts: str | list[str]) -> dict | list[dict]:
         """A prediction step for the model to take. This includes whether single or batch predictions.
         Override this method according to the used model prediction behavior.
 
@@ -114,7 +120,7 @@ class inferenceModel(inferenceInterface):
             TypeError: If texts is not str or list[str].
 
         Returns:
-            str | list[str]: Will return str of the prediction if single text provided, else will return predicted list[str].
+            dict | list[dict]: Will return str of the prediction if single text provided, else will return predicted list[str].
         """
         is_single = isinstance(texts, str)
         if is_single:
@@ -132,5 +138,6 @@ class inferenceModel(inferenceInterface):
                 pred, context_weights = self.model(prep_text, prep_len_text)
             indices = torch.argmax(pred, 1).numpy()
             labels = [self.idx2class[int(x)] for x in indices]
-            pred_results.extend(labels)
+            res = self._format_output(chunk, labels)
+            pred_results.extend(res)
         return pred_results[0] if is_single else pred_results

@@ -1,12 +1,15 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager
 from sqlalchemy import select, func, desc
+from sqlalchemy.exc import SQLAlchemyError
 from typing import Dict, List, Any
 
 from ..models.subscriptions_model import SubscriptionPlans, Tiers
+from ...db.error_mapper import DatabaseErrorMapper
 
 from domain.entities.subscriptions.interfaces import SubscriptionPlansInterface
 from domain.entities.subscriptions import SubscriptionPlansEntity
+from domain.exceptions import PaginationTypeError
 
 
 class SubscriptionPlanService(SubscriptionPlansInterface):
@@ -23,12 +26,15 @@ class SubscriptionPlanService(SubscriptionPlansInterface):
             SubscriptionPlans: ORM Obj of the newly created plan.
         """
         new_plan = SubscriptionPlans.from_entity(plan)
-        db.add(new_plan)
-        await db.flush()
-        if commit:
-            await db.commit()
-            await db.refresh(new_plan)
-        return new_plan
+        try:
+            db.add(new_plan)
+            await db.flush()
+            if commit:
+                await db.commit()
+                await db.refresh(new_plan)
+            return new_plan
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
 
     async def edit_plans(self, db: AsyncSession, plan: SubscriptionPlans) -> bool:
         """Edit plans based on edited ORM Obj.
@@ -47,11 +53,14 @@ class SubscriptionPlanService(SubscriptionPlansInterface):
         Returns:
             True | False: Return the bool of editting, True means edit value has been applied, False otherwise.
         """
-        if plan:
-            await db.commit()
-            await db.refresh(plan)
-            return True
-        return False
+        try:
+            if plan:
+                await db.commit()
+                await db.refresh(plan)
+                return True
+            return False
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
 
     async def get_plans(
         self,
@@ -74,6 +83,14 @@ class SubscriptionPlanService(SubscriptionPlansInterface):
             List[SubscriptionPlans] | Dict[str, Any]: Will return list of the ORM Obj if pagination variable are set to 0,
             else will return dict that includes total count, used offset, used limit, and data from the query.
         """
+        if offset < 0:
+            raise PaginationTypeError(
+                message="`offset` must be non-negative integer value", offset=offset
+            )
+        if limit < 1 and limit > 100:
+            raise PaginationTypeError(
+                message="`limit` must not be less than 1 and less than 100", limit=limit
+            )
         stmnt = select(SubscriptionPlans)
         if with_tier:
             stmnt = stmnt.join(Tiers).options(contains_eager(SubscriptionPlans.tier))
@@ -83,7 +100,10 @@ class SubscriptionPlanService(SubscriptionPlansInterface):
             stmnt = stmnt.offset(offset)
         if limit:
             stmnt = stmnt.limit(limit)
-        res = await db.execute(stmnt)
+        try:
+            res = await db.execute(stmnt)
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
         if with_tier:
             plans = res.unique().scalars().all()
         else:
@@ -100,7 +120,10 @@ class SubscriptionPlanService(SubscriptionPlansInterface):
             )
         else:
             count_stmnt = select(func.count()).select_from(SubscriptionPlans)
-        count_result = await db.execute(count_stmnt)
+        try:
+            count_result = await db.execute(count_stmnt)
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
         count_value = count_result.scalar_one()
         return {"total": count_value, "offset": offset, "limit": limit, "data": plans}
 
@@ -127,8 +150,19 @@ class SubscriptionPlanService(SubscriptionPlansInterface):
                 .where(SubscriptionPlans.is_active == True)  # noqa
                 .limit(1)
             )
-        res = await db.execute(stmnt)
+        try:
+            res = await db.execute(stmnt)
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
         plans = res.scalars()
         if is_latestActive:
             return plans.first()
         return plans.all()
+
+    async def deactivate_plan(self, db: AsyncSession, plan: SubscriptionPlans) -> bool:
+        try:
+            plan.is_active = False
+            await db.flush()
+            return True
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)

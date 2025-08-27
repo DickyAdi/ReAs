@@ -14,7 +14,7 @@ from domain.enums.tiers_pricing import Currency
 from domain.enums.subscriptions import SubscriptionPlan
 from domain.enums.tiers import Tier
 
-from domain.exceptions import PlanRefError, PlanDeactivateError
+from domain.exceptions import PlanReferenceError, PlanDeactivateError
 
 from .base_class import BaseSubscriptionFlow
 
@@ -72,10 +72,14 @@ class CreateNewPlanFlow(BaseSubscriptionFlow):
             db=db, tier=tier, cycle=cycle, currency=currency
         )
         if not existing_plan:
-            raise PlanRefError
+            raise PlanReferenceError(
+                plan_code=self.plan_app.parse_code(
+                    tier=tier, cycle=cycle, currency=currency
+                )
+            )
         deactivated = await self.plan_app.deactivate_plan(db=db, plan=existing_plan)
         if not deactivated:
-            raise PlanDeactivateError
+            raise PlanDeactivateError(plan_code=existing_plan.code)
         selected_tier = await self.tier_app.get_tier(db=db, tier_name=tier)
         created_plan = await self.plan_app.create_new_plan(
             db=db,

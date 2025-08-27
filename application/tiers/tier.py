@@ -3,6 +3,8 @@ from typing import Optional
 from domain.entities.tiers.interfaces import TiersInterface
 from domain.enums.tiers import Tier
 
+from domain.exceptions import DoubleIdentifierError
+
 
 class TierApplication:
     """Tier application for tier services."""
@@ -21,15 +23,13 @@ class TierApplication:
             tier_name (Optional[Tier], optional): Tier enum object. Defaults to None.
 
         Raises:
-            ValueError: If both `id` and `tier_name` is provided. Choose only one.
+            DoubleIdentifierError: If both `id` and `tier_name` is provided. Choose only one.
 
         Returns:
             Tier: Infrastructure layer Tier ORM instances.
         """
         if id and tier_name:
-            raise ValueError(
-                "Only 1 identifiers must be provided, whether `id` or `tier_name`."
-            )
+            raise DoubleIdentifierError(identifiers=["id", "tier_name"])
         if id:
             tier_obj = await self.service.get_tier_by_id(db=db, id=id)
         else:

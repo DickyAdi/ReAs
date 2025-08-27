@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from domain.entities.user.interfaces import UserInterface
 from domain.auth.interfaces import AuthInterface
 from domain.mail.smtp import SmtpInterface
-from domain.exceptions import UserNotFoundException, InvalidResetPasswordToken
+from domain.exceptions import UserNotFoundError, InvalidResetPasswordTokenError
 from domain.enums.auth import TokenPurpose
 
 from application.mailing import MailingApplication
@@ -45,7 +45,7 @@ class ForgetPasswordFlow(BaseAuthenticationFlow):
         """
         user = await self.user_app.get_user(db=db, email=email)
         if not user:
-            raise UserNotFoundException("User doesnt exists.")
+            raise UserNotFoundError(user_identifier=email)
         token = self.auth_app.create_token(
             email=email,
             token_version=1,
@@ -101,10 +101,10 @@ class ResetPasswordFlow(BaseAuthenticationFlow):
             or purpose != TokenPurpose.forget_password.name
             or token_version != 1
         ):
-            raise InvalidResetPasswordToken
+            raise InvalidResetPasswordTokenError
         user = await self.user_app.get_user(db=db, email=email)
         if not user:
-            raise UserNotFoundException
+            raise UserNotFoundError(user_identifier=email)
         is_edited = await self.user_app.change_user_password(
             db=db, user=user, hashed_changed_password_value=hashed_password
         )

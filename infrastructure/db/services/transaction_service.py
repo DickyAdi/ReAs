@@ -1,8 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import select
 from typing import Optional
 
 from ..models.transaction_model import Transactions
+
+from ...db.error_mapper import DatabaseErrorMapper
 
 from domain.entities.transactions.interfaces import TransactionInterface
 from domain.entities.transactions import TransactionEntity
@@ -24,9 +27,12 @@ class TransactionService(TransactionInterface):
         stmnt = select(Transactions).where(
             Transactions.idempotency_key == idempotency_key
         )
-        res = await db.execute(stmnt)
-        trx = res.scalar_one_or_none()
-        return trx
+        try:
+            res = await db.execute(stmnt)
+            trx = res.scalar_one_or_none()
+            return trx
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
 
     async def create_idempotent_transaction(
         self,
@@ -51,12 +57,15 @@ class TransactionService(TransactionInterface):
         if idempotent_trx:
             return idempotent_trx
         new_trx = Transactions.from_entity(transaction=transaction)
-        db.add(new_trx)
-        await db.flush()
-        if commit:
-            await db.commit()
-            await db.refresh(new_trx)
-        return new_trx
+        try:
+            db.add(new_trx)
+            await db.flush()
+            if commit:
+                await db.commit()
+                await db.refresh(new_trx)
+            return new_trx
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
 
     async def get_transaction(self, db):
         pass

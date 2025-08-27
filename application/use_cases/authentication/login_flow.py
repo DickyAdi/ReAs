@@ -5,7 +5,7 @@ from domain.entities.user.interfaces import UserInterface
 from domain.auth import Token
 from domain.enums.auth import TokenPurpose
 from domain.enums.users import Role
-from domain.exceptions import InvalidCredentials, InvalidAuthenticateToken
+from domain.exceptions import InvalidAuthenticateTokenError, InvalidCredentialsError
 from .base_class import BaseAuthenticationFlow
 
 
@@ -80,20 +80,20 @@ class UserAuthenticateFlow(BaseAuthenticationFlow):
             payload = self.auth_app.decode_token(token=token)
             email = payload.get("sub")
             if email is None:
-                raise InvalidCredentials
+                raise InvalidAuthenticateTokenError
             token_version = payload.get("token_version")
             if token_version is None:
-                raise InvalidCredentials
+                raise InvalidAuthenticateTokenError
             purpose = payload.get("purpose")
             if purpose is None or purpose != TokenPurpose.authenticate.name:
-                raise InvalidCredentials
-        except Exception as e:
-            raise InvalidCredentials(f"Something went wrong: {str(e)}")
+                raise InvalidAuthenticateTokenError
+        except Exception:
+            raise
         user = await self.user_app.get_user(
             db=db, email=email, with_sub=with_sub, role=None
         )  # * Role=None means there's no role checking, later if want to be stricter then this should be set accordingly based on the expected user roles
         if user.token_version != token_version:
-            raise InvalidAuthenticateToken("Token version wasnt match.")
+            raise InvalidCredentialsError(credentials_type="token_version")
         return user
 
 

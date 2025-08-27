@@ -1,11 +1,10 @@
-from fastapi import APIRouter, status, Depends, HTTPException, Form
+from fastapi import APIRouter, status, Depends, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError
+from sqlalchemy.exc import SQLAlchemyError
 from typing import Annotated
 
 from domain.enums.users import Role, AuthProvider
-from domain.exceptions import PlanDeactivateError, PlanRefError
 from infrastructure.db import get_db, User
 from loggers.log import get_loggers
 
@@ -55,37 +54,17 @@ async def create_admin(
             return JSONResponse(
                 status_code=status.HTTP_200_OK, content={"message": "Admin created."}
             )
-    except IntegrityError:
+    except SQLAlchemyError:
         logger.warning(
             "Superadmin name: %s trying to create new admin but failed. ",
             curr_admin.name,
         )
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Email or name already exists."
-        )
-    except OperationalError as e:
-        logger.critical(
-            "Cannot reach database, check database configuration. %s", str(e)
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error.",
-        )
-    except InterfaceError:
-        logger.error("Database adapter error cannot finish task.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error.",
-        )
-    except Exception as e:
+        raise
+    except Exception:
         logger.warning(
-            "Admin name: %s tried to create new user but failed", curr_admin.name
+            "Admin name: %s tried to create new admin but failed", curr_admin.name
         )
-        logger.error("Something went wrong %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong.",
-        )
+        raise
 
 
 @router.get("/plans")
@@ -96,25 +75,9 @@ async def list_plans(
     db: AsyncSession = Depends(get_db),
     plan_app: SubscriptionPlanApplication = Depends(get_subscription_plan_application),
 ):
-    if not isinstance(offset, int) or not isinstance(limit, int):
-        logger.warning(
-            "Wrong query parameter detected, expected Integer and Integer. Got %s and %s",
-            type(offset),
-            type(limit),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request."
-        )
-    try:
-        resp = await plan_app.get_plans(
-            db=db, offset=offset, limit=limit, with_tier=True, isActive=isActive
-        )
-    except Exception as e:
-        logger.error("Something went wrong: %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong.",
-        )
+    resp = await plan_app.get_plans(
+        db=db, offset=offset, limit=limit, with_tier=True, isActive=isActive
+    )
     return resp
 
 
@@ -124,31 +87,15 @@ async def create_plans(
     db: AsyncSession = Depends(get_db),
     flow: CreateNewPlanFlow = Depends(get_create_plan_flow),
 ):
-    try:
-        new_plan = await flow(
-            db=db,
-            tier=form_data.tier,
-            cycle=form_data.cycle,
-            currency=form_data.currency,
-            price=form_data.price,
-            duration_days=form_data.duration_days,
-        )
-        logger.info("Superadmin created new plan with code of %s", new_plan.code)
-        return JSONResponse(
-            status_code=status.HTTP_200_OK, content={"message": "new plan appended."}
-        )
-    except PlanRefError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New plan must refer to existing plan.",
-        )
-    except PlanDeactivateError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong in deactivation of existing plan.",
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Something went wrong: {str(e)}",
-        )
+    new_plan = await flow(
+        db=db,
+        tier=form_data.tier,
+        cycle=form_data.cycle,
+        currency=form_data.currency,
+        price=form_data.price,
+        duration_days=form_data.duration_days,
+    )
+    logger.info("Superadmin created new plan with code of %s", new_plan.code)
+    return JSONResponse(
+        status_code=status.HTTP_200_OK, content={"message": "new plan appended."}
+    )

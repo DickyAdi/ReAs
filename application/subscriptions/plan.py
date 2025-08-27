@@ -60,16 +60,9 @@ class SubscriptionPlanApplication:
             with_tier (bool, optional): Whether to join subscription plan table with tier table or not. Defaults to False.
             isActive (bool, optional): Returns the active plan or not. Defaults to False.
 
-        Raises:
-            TypeError: If offset and limit is not integer.
-
         Returns:
             Plan: Infrastructure layer Plan object.
         """
-        if not isinstance(offset, int) or not isinstance(limit, int):
-            raise TypeError(
-                f"Offset and or limit must be type Integer. Got {type(offset)} and {type(limit)}"
-            )
         plans = await self.service.get_plans(
             db=db, offset=offset, limit=limit, with_tier=with_tier, isActive=isActive
         )
@@ -88,12 +81,7 @@ class SubscriptionPlanApplication:
         Returns:
             bool: Returns True if class instance is deactivated and successfuly flushed to the database.
         """
-        try:
-            plan.is_active = False
-            await db.flush()
-            return True
-        except Exception as e:
-            raise Exception(f"Something went wrong: {str(e)}")
+        return self.service.deactivate_plan(db=db, plan=plan)
 
     async def create_new_plan(
         self,
@@ -129,3 +117,10 @@ class SubscriptionPlanApplication:
         )
         new_plan = await self.service.create_plans(db=db, plan=plan_entity)
         return new_plan
+
+    def parse_code(
+        self, tier: Tier, cycle: SubscriptionPlan, currency: Currency
+    ) -> str:
+        return SubscriptionPlansEntity.parse_tier_code(
+            tier=tier, cycle=cycle, currency=currency
+        )

@@ -1,13 +1,15 @@
-from fastapi import APIRouter, status, Depends, HTTPException
+from fastapi import APIRouter, status, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError
+from sqlalchemy.exc import IntegrityError
 
 from domain.enums.users import Role, AuthProvider
 from application.use_cases.subscription import UserRegistrationFlow
 from application.user import UserApplication
 from infrastructure.db import get_db, User
 from loggers.log import get_loggers
+
+from domain.exceptions import InsufficientRoleError, PaginationTypeError
 
 from ...schemas import CreateUserRequest, GetUsersResponse
 from ...schemas.admin import GetMeResponse
@@ -49,35 +51,10 @@ async def create_user(
                 status_code=status.HTTP_200_OK, content={"message": "User created."}
             )
     except IntegrityError:
-        logger.warning(
+        logger.info(
             "Admin name: %s tried to create new user but failed", admin_creds.name
         )
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Email or name already exists."
-        )
-    except OperationalError as e:
-        logger.critical(
-            "Cannot reach database, check database configuration. %s", str(e)
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error.",
-        )
-    except InterfaceError:
-        logger.error("Database adapter error cannot finish task.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error.",
-        )
-    except Exception as e:
-        logger.warning(
-            "Admin name: %s tried to create new user but failed", admin_creds.name
-        )
-        logger.error("Something went wrong %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong.",
-        )
+        raise
 
 
 @router.get("/users")
@@ -89,29 +66,21 @@ async def list_users(
     user_app: UserApplication = Depends(get_user_application),
     curr_admin: User = Depends(min_role(Role.admin)),
 ) -> GetUsersResponse:
-    if not isinstance(offset, int) or not isinstance(limit, int):
-        logger.warning(
-            "Wrong query parameter detected, expected Integer and Integer. Got %s and %s",
-            type(offset),
-            type(limit),
+    if offset < 0:
+        raise PaginationTypeError(
+            message="`offset` must not be less than 0", offset=offset
         )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request."
+    if limit < 0 or limit > 100:
+        raise PaginationTypeError(message="`limit` must between 1 and 100", limit=limit)
+    if (
+        role != Role.user and curr_admin.role != Role.superadmin
+    ):  # * filter by role, only superadmin can apply filter other than user.
+        raise InsufficientRoleError(
+            role=curr_admin.role.value, minimum_role=Role.superadmin.value
         )
-    if role != Role.user and curr_admin.role != Role.superadmin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role."
-        )
-    try:
-        resp = await user_app.get_users(
-            db=db, offset=offset, limit=limit, role=role, with_sub=True
-        )
-    except Exception as e:
-        logger.error("Something went wrong: %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something went wrong",
-        )
+    resp = await user_app.get_users(
+        db=db, offset=offset, limit=limit, role=role, with_sub=True
+    )
     return resp
 
 

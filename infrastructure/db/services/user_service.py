@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import contains_eager
+from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional
 from uuid import UUID
 
@@ -9,8 +10,10 @@ from domain.entities.user.interfaces import UserInterface
 from ...db.models import User
 from ...db.models import Subscriptions
 from ...db.models import SubscriptionPlans
+from ...db.error_mapper import DatabaseErrorMapper
 from domain.enums.users import Role
 from domain.enums.subscriptions import SubscriptionStatus
+from domain.exceptions import PaginationTypeError
 
 
 class UserService(UserInterface):
@@ -40,6 +43,14 @@ class UserService(UserInterface):
         Returns:
             List[Users]: List of Users data with number of limit.
         """
+        if offset < 0:
+            raise PaginationTypeError(
+                message="`offset` must be non-negative integer value", offset=offset
+            )
+        if limit < 1 and limit > 100:
+            raise PaginationTypeError(
+                message="`limit` must not be less than 1 and less than 100", limit=limit
+            )
         statement = select(User)
         if with_sub:
             statement = (
@@ -57,7 +68,10 @@ class UserService(UserInterface):
             statement = statement.limit(limit)
         if role:
             statement = statement.where(User.role == role)
-        result = await db.execute(statement)
+        try:
+            result = await db.execute(statement)
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
         if with_sub:
             users = result.unique().scalars().all()
         else:
@@ -69,7 +83,10 @@ class UserService(UserInterface):
         count_statement = (
             select(func.count()).select_from(User).where(User.role == role)
         )
-        count_result = await db.execute(count_statement)
+        try:
+            count_result = await db.execute(count_statement)
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
         count_value = count_result.scalar_one()
         return {"total": count_value, "offset": offset, "limit": limit, "data": users}
 
@@ -89,7 +106,11 @@ class UserService(UserInterface):
         statement = select(User).where(User.email == email)
         if role:
             statement = statement.where(User.role == role)
-        result = await db.execute(statement)
+
+        try:
+            result = await db.execute(statement)
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
         user = result.scalars().first()
         return user
 
@@ -109,7 +130,10 @@ class UserService(UserInterface):
         stmt = select(User).where(User.uuid == uuid)
         if role:
             stmt = stmt.where(User.role == role)
-        res = await db.execute(statement=stmt)
+        try:
+            res = await db.execute(statement=stmt)
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
         user = res.scalars().first()
         return user
 
@@ -127,12 +151,15 @@ class UserService(UserInterface):
             User: Created new user ORM instance.
         """
         new_user = User.from_entity(user)
-        db.add(new_user)
-        await db.flush()
-        if commit:
-            await db.commit()
-            await db.refresh(new_user)
-        return new_user
+        try:
+            db.add(new_user)
+            await db.flush()
+            if commit:
+                await db.commit()
+                await db.refresh(new_user)
+            return new_user
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
 
     async def delete_user(
         self,
@@ -161,13 +188,16 @@ class UserService(UserInterface):
             statement = select(User).where(User.email == email)
         elif user_id:
             statement = select(User).where(User.id == user_id)
-        result = await db.execute(statement)
-        user_db = result.scalar_one_or_none()
-        if user_db:
-            await db.delete(user_db)
-            await db.commit()
-            return True
-        return False
+        try:
+            result = await db.execute(statement)
+            user_db = result.scalar_one_or_none()
+            if user_db:
+                await db.delete(user_db)
+                await db.commit()
+                return True
+            return False
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
 
     async def edit_user(self, db: AsyncSession, user: User):
         """Editting user based on User ORM Obj.
@@ -179,11 +209,14 @@ class UserService(UserInterface):
         Returns:
             True | False: Return the bool of editting, True means edit value has been applied, False otherwise.
         """
-        if user:
-            await db.commit()
-            await db.refresh(user)
-            return True
-        return False
+        try:
+            if user:
+                await db.commit()
+                await db.refresh(user)
+                return True
+            return False
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)
 
     async def get_user_with_sub(
         self, db: AsyncSession, id: Optional[int], email: Optional[str]
@@ -205,5 +238,8 @@ class UserService(UserInterface):
             stmt = stmt.where(User.id == id)
         else:
             stmt = stmt.where(User.email == email)
-        res = await db.execute(stmt)
-        return res.scalars().first()
+        try:
+            res = await db.execute(stmt)
+            return res.scalars().first()
+        except SQLAlchemyError as e:
+            raise DatabaseErrorMapper().map_error(e)

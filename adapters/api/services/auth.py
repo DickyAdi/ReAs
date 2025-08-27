@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from typing import Annotated, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,7 @@ from infrastructure.mail import MailtrapService
 from infrastructure.db.services import UserService
 from domain.enums.users import Role, ROLE_LEVEL
 from domain.enums.tiers import Tier, TIER_LEVEL
-from domain.exceptions import InvalidCredentials, InvalidAuthenticateToken
+from domain.exceptions import InsufficientTierError, InsufficientRoleError
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/auth/token", scheme_name="oauth2_scheme"
@@ -85,23 +85,8 @@ def get_user_from_scheme(schema: Optional[Role] = Role.user, with_sub: bool = Fa
         db: AsyncSession = Depends(get_db),
         flow: UserAuthenticateFlow = Depends(get_user_auth_flow),
     ):
-        try:
-            user = await flow(db=db, token=token, with_sub=with_sub)
-            return user
-        except InvalidCredentials:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token."
-            )
-        except InvalidAuthenticateToken:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Token version missmatch.",
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Something went wrong: {str(e)}",
-            )
+        user = await flow(db=db, token=token, with_sub=with_sub)
+        return user
 
     return get_current_user
 
@@ -120,16 +105,8 @@ async def get_token_from_any_scheme(request: Request):
     """
     schemas = [oauth2_scheme, admin_oauth2_scheme]
     for schema in schemas:
-        try:
-            token = await schema(request)
-            return token
-        except HTTPException:
-            continue
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Not authenticated.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+        token = await schema(request)
+        return token
 
 
 def get_user_from_any_schema(with_sub: bool = False):
@@ -147,23 +124,8 @@ def get_user_from_any_schema(with_sub: bool = False):
         db: AsyncSession = Depends(get_db),
         flow: UserAuthenticateFlow = Depends(get_user_auth_flow),
     ):
-        try:
-            user = await flow(db=db, token=token, with_sub=with_sub)
-            return user
-        except InvalidCredentials:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Bad token."
-            )
-        except InvalidAuthenticateToken:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Token version missmatch.",
-            )
-        except Exception:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Something went wrong",
-            )
+        user = await flow(db=db, token=token, with_sub=with_sub)
+        return user
 
     return get_current_user
 
@@ -174,9 +136,6 @@ def min_tier(min_tier: Tier):
     Args:
         min_tier (Tier): Minimum tier to be able to pass.
 
-    Raises:
-        HTTPException: 403 HTTP Exception, when User tier is lower than `min_tier`.
-
     Returns:
         Function: A function that specifically have been set to a correct parameter value, where it automatically returns User.
     """
@@ -184,10 +143,10 @@ def min_tier(min_tier: Tier):
     async def checker(user: User = Depends(get_user_from_any_schema(with_sub=True))):
         if ROLE_LEVEL[user.role] >= ROLE_LEVEL[Role.admin]:
             return user
-        if TIER_LEVEL[user.subscriptions[0].plan.tier.name] < TIER_LEVEL[min_tier]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Insufficient tier. Required at least tier {min_tier.name}",
+        user_tier = user.subscriptions[0].plan.tier.name
+        if TIER_LEVEL[user_tier] < TIER_LEVEL[min_tier]:
+            raise InsufficientTierError(
+                tier=user_tier.value, minimum_tier=min_tier.value
             )
         return user
 
@@ -200,17 +159,14 @@ def min_role(min_role: Role):
     Args:
         min_role (Role): Minimum role to be able to pass.
 
-    Raises:
-        HTTPException: 403 HTTP Exception, when User role is lower than `min_role`.
-
     Returns:
         Function: A function that specifically have been set to a correct parameter value, where it automatically returns User.
     """
 
     async def checker(user: User = Depends(get_user_from_any_schema())):
         if ROLE_LEVEL[user.role] < ROLE_LEVEL[min_role]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role."
+            raise InsufficientRoleError(
+                role=user.role.value, minimum_role=min_role.value
             )
         return user
 

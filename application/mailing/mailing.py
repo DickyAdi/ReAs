@@ -29,11 +29,11 @@ class MailingApplication:
         msg["To"] = recepients
         msg.set_content(f"Verify your email account at {verify_link}")
         msg.add_alternative(content, subtype="html")
-        try:
+        try:  # defensive. Still have no idea what are the exceptions for SMTP's. Bare raise everything.
             await self.provider.send(email=msg, sender=sender, recepients=recepients)
             return True
         except Exception:
-            return False
+            raise
 
     async def send_reset_password_email(
         self, user_agent, request_time, reset_link: str, sender: str, recepients: str
@@ -60,8 +60,8 @@ class MailingApplication:
         msg["To"] = recepients
         msg.set_content(f"Reset your account password at {reset_link}")
         msg.add_alternative(content, subtype="html")
-        try:
+        try:  # defensive. Still have no idea what are the exceptions for SMTP's. Bare raise everything.
             await self.provider.send(email=msg, sender=sender, recepients=recepients)
             return True
         except Exception:
-            return False
+            raise

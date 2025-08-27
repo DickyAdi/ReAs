@@ -4,9 +4,10 @@ from domain.auth.interfaces import AuthInterface
 from domain.entities.user.interfaces import UserInterface
 from domain.mail.smtp import SmtpInterface
 from domain.exceptions import (
-    UserNotFoundException,
-    EmailAlreadyValidated,
-    InvalidEmailVerifyToken,
+    UserNotFoundError,
+    EmailAlreadyVerifiedError,
+    InvalidEmailVerificationTokenError,
+    FailedToSendEmail,
 )
 from domain.enums.auth import TokenPurpose
 
@@ -39,17 +40,17 @@ class SendVerifyEmailFlow(BaseAuthenticationFlow):
             user (Any): Infrastructure layer User ORM instance.
 
         Raises:
-            UserNotFoundException: If `user` is None.
-            EmailAlreadyValidated: If user is already validated.
-            Exception: If email is not sent. This is likely to be unrecognizeable Exception within the Mailiing Application.
+            UserNotFoundError: If `user` is None.
+            EmailAlreadyVerifiedError: If user is already validated.
+            FailedToSendEmail: If email is not sent. This is likely to be unrecognizeable Exception within the Mailiing Application.
 
         Returns:
             bool: Whether email has been sent or not.
         """
         if not user:
-            raise UserNotFoundException(message="`user` cannot be None")
+            raise UserNotFoundError(user_identifier=user.email)
         if user.is_validated:
-            raise EmailAlreadyValidated("Email is already validated.")
+            raise EmailAlreadyVerifiedError(email=user.email)
         token = self.auth_app.create_token(
             email=user.email,
             token_version=user.token_version,
@@ -61,7 +62,7 @@ class SendVerifyEmailFlow(BaseAuthenticationFlow):
             verify_link=verify_link, sender="support@reas.org", recepients=user.email
         )
         if not sended:
-            raise Exception("Something went wrong.")
+            raise FailedToSendEmail(users_email=user.email, smtp_provider="Mailtrap")
         return sended
 
 
@@ -83,8 +84,8 @@ class VerifyEmailFlow(BaseAuthenticationFlow):
             db (Any): Infrastructure layer database session.
 
         Raises:
-            InvalidEmailVerifyToken: If given `token` purpose is not TokenPurpose.verify_email
-            UserNotFoundException: If User is not on database.
+            InvalidEmailVerificationTokenError: If given `token` purpose is not TokenPurpose.verify_email
+            UserNotFoundError: If User is not on database.
 
         Returns:
             bool: Whether users email has been validated or not.
@@ -93,9 +94,9 @@ class VerifyEmailFlow(BaseAuthenticationFlow):
         email = payload.get("sub")
         purpose = payload.get("purpose")
         if email is None or purpose != TokenPurpose.verify_email.name:
-            raise InvalidEmailVerifyToken
+            raise InvalidEmailVerificationTokenError
         user = await self.user_app.get_user(db=db, email=email)
         if not user:
-            raise UserNotFoundException
+            raise UserNotFoundError(user_identifier=email)
         is_edited = self.user_app.set_user_validated(db=db, user=user)
         return is_edited

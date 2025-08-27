@@ -10,27 +10,36 @@ if TYPE_CHECKING:
 
 
 from domain.enums.subscriptions import SubscriptionStatus
-from domain.exceptions import UnpaidTransactions
+
 
 @dataclass
 class SubscriptionEntity:
-    start_at:datetime
+    start_at: datetime
     status: SubscriptionStatus
-    end_at:Optional[datetime] = None #default to None, assuming user starts from base tier
-    id:Optional[UUID] = None #derived from database
-    user_id:Optional[int] = None #derived from database
-    transactions_id:Optional[UUID] = None #derived from database
-    plans_id:Optional[int] = None #derived from database
-    created_at:Optional[datetime] = None #derived from database
+    end_at: Optional[datetime] = (
+        None  # default to None, assuming user starts from base tier
+    )
+    id: Optional[UUID] = None  # derived from database
+    user_id: Optional[int] = None  # derived from database
+    transactions_id: Optional[UUID] = None  # derived from database
+    plans_id: Optional[int] = None  # derived from database
+    created_at: Optional[datetime] = None  # derived from database
 
-    #related entities
-    user:Optional["UserEntities"] = None
-    plan:Optional["SubscriptionPlansEntity"] = None
-    transaction:Optional["TransactionEntity"] = None
-
+    # related entities
+    user: Optional["UserEntities"] = None
+    plan: Optional["SubscriptionPlansEntity"] = None
+    transaction: Optional["TransactionEntity"] = None
 
     @classmethod
-    def create(cls, start_date:datetime, end_date:datetime, status:SubscriptionStatus, plan_id:int, transaction_id:UUID, user_id:int) -> "SubscriptionEntity":
+    def create(
+        cls,
+        start_date: datetime,
+        end_date: datetime,
+        status: SubscriptionStatus,
+        plan_id: int,
+        transaction_id: UUID,
+        user_id: int,
+    ) -> "SubscriptionEntity":
         return cls(
             start_at=start_date,
             end_at=end_date,
@@ -39,4 +48,3 @@ class SubscriptionEntity:
             user_id=user_id,
             status=status,
         )
-    
