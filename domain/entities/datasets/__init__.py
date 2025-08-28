@@ -1,1 +1,1 @@
-from .usage import DatasetEntity
+from .dataset import DatasetEntity

@@ -7,10 +7,16 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .dataset_model import Datasets
+    from .insight_model import Insights
+    from .data_source_log_model import DataSource
 
 from ..db import Base
 
 from domain.enums.texts import TextLanguage, TextPlatform
+# from domain.enums.datasets import DatasetProvider
+
+
+# ! You left here, implement adding sentiment column to the table
 
 
 class Reviews(Base):
@@ -26,7 +32,7 @@ class Reviews(Base):
     )
     text: Mapped[Text] = mapped_column(Text, nullable=True)
     place: Mapped[str] = mapped_column(String(100), nullable=False)
-    rating: Mapped[int] = mapped_column(nullable=False)
+    rating: Mapped[int] = mapped_column(nullable=True)
     post_date: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
     platform: Mapped[TextPlatform] = mapped_column(
         ENUM(
@@ -40,8 +46,20 @@ class Reviews(Base):
         ),
         nullable=False,
     )
+    # sentiment: Mapped[str] = mapped_column()
     dataset_id: Mapped[UUID] = mapped_column(
         ForeignKey("datasets.id"), nullable=False, unique=True, index=True
     )
+    provider_ref: Mapped[UUID] = mapped_column(
+        ForeignKey("data_source_log.id"), nullable=False
+    )
+
+    # * related entity
 
     dataset: Mapped["Datasets"] = relationship("Datasets", back_populates="reviews")
+    insights: Mapped["Insights"] = relationship(
+        "Insights", secondary="insight_reviews", back_populates="reviews"
+    )
+    data_source: Mapped["DataSource"] = relationship(
+        "DataSource", back_populates="reviews"
+    )

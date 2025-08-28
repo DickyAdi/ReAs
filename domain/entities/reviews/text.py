@@ -7,7 +7,8 @@ if TYPE_CHECKING:
     from domain.entities.datasets import DatasetEntity
 
 
-from domain.enums.texts import TextLanguage, TextPlatform, TextSentiment
+from domain.enums.texts import TextLanguage, TextPlatform
+# from domain.enums.datasets import DatasetProvider
 
 
 @dataclass
@@ -17,7 +18,9 @@ class ReviewEntity:
     rating: int
     post_date: datetime
     platform: TextPlatform
+    # provider: DatasetProvider
     language: TextLanguage
+    provider_ref: Optional[UUID] = None  # derived from database
     id: Optional[UUID] = None  # derived from database
     dataset_id: Optional[UUID] = None  # derived from database
 
@@ -33,7 +36,8 @@ class ReviewEntity:
         post_date: datetime,
         platform: TextPlatform,
         language: TextLanguage,
-        dataset: Optional["DatasetEntity"],
+        dataset: Optional["DatasetEntity"] = None,
+        provider_ref: Optional[UUID] = None,
     ) -> "ReviewEntity":
         return cls(
             text=text,
@@ -43,6 +47,7 @@ class ReviewEntity:
             platform=platform,
             language=language,
             dataset=dataset,
+            provider_ref=provider_ref,
         )
 
     # @classmethod
