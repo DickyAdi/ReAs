@@ -12,11 +12,8 @@ if TYPE_CHECKING:
 
 from ..db import Base
 
-from domain.enums.texts import TextLanguage, TextPlatform
+from domain.enums.texts import TextLanguage, TextPlatform, TextSentiment
 # from domain.enums.datasets import DatasetProvider
-
-
-# ! You left here, implement adding sentiment column to the table
 
 
 class Reviews(Base):
@@ -46,7 +43,16 @@ class Reviews(Base):
         ),
         nullable=False,
     )
-    # sentiment: Mapped[str] = mapped_column()
+
+    sentiment: Mapped[TextSentiment] = mapped_column(
+        ENUM(
+            TextSentiment,
+            name="text_predicted_sentiment_enum",
+            create_type=True,
+            check_first=True,
+        ),
+        nullable=False,
+    )
     dataset_id: Mapped[UUID] = mapped_column(
         ForeignKey("datasets.id"), nullable=False, unique=True, index=True
     )

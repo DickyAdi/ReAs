@@ -1,8 +1,8 @@
 """init
 
-Revision ID: 464760a367ad
+Revision ID: f957a4fd0e77
 Revises: 
-Create Date: 2025-08-28 19:00:19.620604
+Create Date: 2025-08-28 20:41:20.722609
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '464760a367ad'
+revision: str = 'f957a4fd0e77'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -129,6 +129,7 @@ def upgrade() -> None:
     sa.Column('post_date', sa.DateTime(), nullable=False),
     sa.Column('platform', postgresql.ENUM('gmaps', name='text_platform_enum'), nullable=False),
     sa.Column('language', postgresql.ENUM('ID', 'EN', name='text_language_enum'), nullable=False),
+    sa.Column('sentiment', postgresql.ENUM('positive', 'negative', 'neutral', name='text_predicted_sentiment_enum'), nullable=False),
     sa.Column('dataset_id', sa.UUID(), nullable=False),
     sa.Column('provider_ref', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['dataset_id'], ['datasets.id'], ),

@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 
 from domain.ml.interfaces.interface import inferenceInterface
+from domain.enums.texts import TextSentiment
 from .models.model import biLSTM_Attention
 from config.settings import settings
 
@@ -30,7 +31,12 @@ class inferenceModel(inferenceInterface):
             map_location="cpu",
         )
         self.chunk_size = settings.predict_chunk_size
-        self.class2idx = {"Positive": 0, "Negative": 1, "Neutral": 2}
+        # self.class2idx = {"Positive": 0, "Negative": 1, "Neutral": 2}
+        self.class2idx = {
+            TextSentiment.positive: 0,
+            TextSentiment.negative: 1,
+            TextSentiment.neutral: 2,
+        }
         self.idx2class = {v: k for k, v in self.class2idx.items()}
 
     def _remove_emoticons(self, text: str):

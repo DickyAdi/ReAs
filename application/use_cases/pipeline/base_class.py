@@ -7,6 +7,7 @@ from application.extractor import ExtractorApplication
 from domain.predictor import PredictorInterface
 from domain.extractor import ExtractorInterface
 from domain.ml.interfaces.interface import inferenceInterface
+from domain.enums.texts import TextSentiment
 
 
 class ExtractionPipelineDictType(TypedDict):
@@ -42,15 +43,25 @@ class BasePipelineFlow:
             ExtractionPipelineDictType: Result dictionary for both Positive and Negative sentiment.
         """
         predicted = self.prediction_app.predict(texts=text, model=model)
+        # positive_texts = [
+        #     sentiment.get("text")
+        #     for sentiment in predicted
+        #     if sentiment.get("sentiment") == "Positive"
+        # ]
+        # negative_texts = [
+        #     sentiment.get("text")
+        #     for sentiment in predicted
+        #     if sentiment.get("sentiment") == "Negative"
+        # ]
         positive_texts = [
             sentiment.get("text")
             for sentiment in predicted
-            if sentiment.get("sentiment") == "Positive"
+            if sentiment.get("sentiment") == TextSentiment.positive
         ]
         negative_texts = [
             sentiment.get("text")
             for sentiment in predicted
-            if sentiment.get("sentiment") == "Negative"
+            if sentiment.get("sentiment") == TextSentiment.negative
         ]
         positive_trend, positive_frequent = self.extraction_app.extract(positive_texts)
         negative_trend, negative_frequent = self.extraction_app.extract(negative_texts)
