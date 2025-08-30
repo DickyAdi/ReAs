@@ -6,3 +6,5 @@ from .review_service import ReviewService
 from .subscription_service import SubscriptionService
 from .tier_service import TierService
 from .transaction_service import TransactionService
+from .data_source_log_service import DataSourceService
+from .insight_service import InsightService

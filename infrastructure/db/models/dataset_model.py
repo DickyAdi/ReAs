@@ -84,6 +84,7 @@ class Datasets(Base):
         return cls(
             name=dataset.name,
             is_empty=dataset.is_empty,
+            issuer_id=dataset.issuer_id,
             total_reviews=dataset.total_reviews,
             status=dataset.status,
         )

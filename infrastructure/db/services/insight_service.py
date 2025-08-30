@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from typing import Optional
+
+from domain.entities.insights import InsightInterface
 
 
-class ReviewService:
+class InsightService(InsightInterface):
     def __init__(self, db: AsyncSession):
         pass

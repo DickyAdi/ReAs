@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from application.user import UserApplication
 from application.auth import AuthApplication
 from infrastructure.db import get_db, User
-from loggers.log import get_loggers
 from domain.enums.users import AuthProvider, Role
 
 from application.use_cases.subscription import UserRegistrationFlow
@@ -31,7 +30,6 @@ from ...services import (
 )
 
 router = APIRouter(tags=["user"])
-logger = get_loggers("reas.adapters.api")
 
 
 @router.post("/register")

@@ -42,7 +42,7 @@ class BaseAuthenticationFlow:
         else:  # * Even if user doesnt exist, keep verifying a password by using a dummy password to prevent timing attacks `ref: CWE-208 Observable timing discrepancy`
             valid_password = self.auth_app.verify_password(
                 user_password=password,
-                db_password="$2b$stupid$hash$dummy.hash.to.prevent.timing.attacks",
+                db_password="$2a$12$YME8U1LNU2PMQRBCnOMhYOVyRhtTYzol7EJEPOX2imhEpnCfOkSbe",
             )
             valid_password = False
         if not user or not valid_password:

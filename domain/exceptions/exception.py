@@ -79,6 +79,20 @@ class UserNameAlreadyExistError(BaseError):
         )
 
 
+# Dataset related error
+class DatasetNameAlreadyExistError(BaseError):
+    """Raised when dataset name already exists in the system."""
+
+    def __init__(self, name: str):
+        message = f"Dataset with name `{name}` already exists"
+        details = {"name": name}
+        super().__init__(
+            message=message,
+            error_code="DATASET_NAME_ALREADY_EXISTS_ERROR",
+            details=details,
+        )
+
+
 # Authentication and authorization.
 class UserNotFoundError(BaseError):
     """Raised when a user cannot be found in the system."""

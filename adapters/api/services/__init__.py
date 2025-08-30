@@ -28,3 +28,4 @@ from .subscriptions import (
 )
 from .mail import get_mailtrap_application
 from .extraction import get_extract_csv_flow
+from .dataset import get_dataset_app

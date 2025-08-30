@@ -30,4 +30,5 @@ from .exception import (
     UnsupportedFileType,
     FileTooLarge,
     SecurityError,
+    DatasetNameAlreadyExistError,
 )
