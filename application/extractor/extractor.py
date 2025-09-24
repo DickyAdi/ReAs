@@ -1,25 +1,29 @@
-from typing import Any
+from typing import Optional, Any
 
 from domain.extractor import ExtractorInterface
+from domain.enums.texts import TextSentiment
 
 
 class ExtractorApplication:
     def __init__(self, service: ExtractorInterface):
         self.service = service
 
-    def extract(self, text: list[str]) -> tuple[Any, Any]:
-        """Extract insights from the given `text`
-
-        Args:
-            text (list[str]): List of review/text.
-
-        Returns:
-            tuple[Any, Any]: Tuple of trend and frequent Pandas DataFrame.
-        """
-        trend_df, frequent_df = self.service.extract(text=text)
-        return (trend_df, frequent_df)
-
-    # def get_text_by_sentiment(self, sentiment:str):
+    def extract(
+        self,
+        reviews: list[Any],
+        sentiment: TextSentiment,
+        top_n: int,
+        language: Optional[str] = "indonesian",
+    ):
+        review_data = [
+            (review.id, review.text)
+            for review in reviews
+            if review.sentiment == sentiment
+        ]
+        extracted = self.service.extract(
+            review_data=review_data, top_n=top_n, language=language
+        )
+        return extracted
 
     def validate_inputs(self, text, sentiment):
         """Validate text and predicted sentiment

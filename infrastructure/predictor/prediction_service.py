@@ -3,18 +3,14 @@ from domain.ml.interfaces.interface import inferenceInterface
 
 
 class PredictionService(PredictorInterface):
-    def clean(self, texts: list[str]) -> list[str]:
-        """Pre-processing/text cleaning or prep. Includes converting to lower case, str type check, empty string check, and single word check.
-
-        Args:
-            texts (list[str]): Texts to be cleaned.
-
-        Returns:
-            list[str]: List of cleaned text.
-        """
+    def clean(self, data: list[dict]) -> list[dict]:
         cleaned_text = []
-        for text in texts:
-            if isinstance(text, str) and text.strip() != "" and len(text.split()) > 1:
+        for text in data:
+            if (
+                isinstance(text.get("text"), str)
+                and text.get("text").strip() != ""
+                and len(text.get("text").split()) > 1
+            ):
                 cleaned_text.append(text)
         return cleaned_text
 

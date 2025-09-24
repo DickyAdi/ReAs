@@ -1,8 +1,8 @@
-"""init
+"""another init
 
-Revision ID: f957a4fd0e77
+Revision ID: c36665a1af39
 Revises: 
-Create Date: 2025-08-28 20:41:20.722609
+Create Date: 2025-09-07 16:25:55.895076
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'f957a4fd0e77'
+revision: str = 'c36665a1af39'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -124,14 +124,14 @@ def upgrade() -> None:
     op.create_table('reviews',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('text', sa.Text(), nullable=True),
-    sa.Column('place', sa.String(length=100), nullable=False),
     sa.Column('rating', sa.Integer(), nullable=True),
     sa.Column('post_date', sa.DateTime(), nullable=False),
-    sa.Column('platform', postgresql.ENUM('gmaps', name='text_platform_enum'), nullable=False),
+    sa.Column('platform', postgresql.ENUM('gmaps', 'user', name='text_platform_enum'), nullable=False),
     sa.Column('language', postgresql.ENUM('ID', 'EN', name='text_language_enum'), nullable=False),
     sa.Column('sentiment', postgresql.ENUM('positive', 'negative', 'neutral', name='text_predicted_sentiment_enum'), nullable=False),
     sa.Column('dataset_id', sa.UUID(), nullable=False),
     sa.Column('provider_ref', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['dataset_id'], ['datasets.id'], ),
     sa.ForeignKeyConstraint(['provider_ref'], ['data_source_log.id'], ),
     sa.PrimaryKeyConstraint('id')

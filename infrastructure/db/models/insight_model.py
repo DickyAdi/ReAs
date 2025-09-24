@@ -1,9 +1,10 @@
-from sqlalchemy import DateTime, DOUBLE_PRECISION, ForeignKey
+from sqlalchemy import DateTime, DOUBLE_PRECISION, ForeignKey, UniqueConstraint
+from sqlalchemy.inspection import inspect
 from uuid import UUID, uuid4
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .dataset_model import Datasets
@@ -26,7 +27,9 @@ class Insights(Base):
     )
 
     topic: Mapped[str] = mapped_column(nullable=False)
-    score: Mapped[float] = mapped_column(DOUBLE_PRECISION, nullable=False)
+    emerging_score: Mapped[float] = mapped_column(DOUBLE_PRECISION, nullable=False)
+    trend_score: Mapped[float] = mapped_column(DOUBLE_PRECISION, nullable=False)
+
     created_at: Mapped[DateTime] = mapped_column(
         DateTime, default=datetime.now(timezone.utc), nullable=False
     )
@@ -36,11 +39,16 @@ class Insights(Base):
         onupdate=datetime.now(timezone.utc),
         nullable=False,
     )
-    dataset_id: Mapped[UUID] = mapped_column(ForeignKey("datasets.id"), nullable=False)
+    dataset_id: Mapped[UUID] = mapped_column(
+        ForeignKey("datasets.id"), nullable=False, index=True
+    )
 
     dataset: Mapped["Datasets"] = relationship("Datasets", back_populates="insights")
     reviews: Mapped[list["Reviews"]] = relationship(
         "Reviews", secondary="insight_reviews", back_populates="insights"
+    )
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "topic", name="uq_topic_per_dataset"),
     )
 
     def to_entity(self) -> "InsightEntity":
@@ -50,13 +58,31 @@ class Insights(Base):
             dataset=self.dataset,
             dataset_id=self.dataset_id,
             id=self.id,
-            score=self.score,
+            emerging_score=self.emerging_score,
+            trend_score=self.trend_score,
             topic=self.topic,
         )
 
     @classmethod
-    def from_entity(cls, insight: "InsightEntity") -> "Insights":
+    def from_entity(
+        cls, insight: "InsightEntity", generate_defaults: Optional[bool] = False
+    ) -> "Insights":
+        if generate_defaults:
+            return cls(
+                id=uuid4(),
+                topic=insight.topic,
+                emerging_score=insight.emerging_score,
+                trend_score=insight.trend_score,
+                dataset_id=insight.dataset_id,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
         return cls(
             topic=insight.topic,
-            score=insight.score,
+            emerging_score=insight.emerging_score,
+            trend_score=insight.trend_score,
+            dataset_id=insight.dataset_id,
         )
+
+    def to_dict(self):
+        return {c.key: getattr(self, c.key) for c in inspect(self).mapper.column_attrs}

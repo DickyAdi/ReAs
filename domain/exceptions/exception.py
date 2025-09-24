@@ -1,3 +1,5 @@
+from typing import Optional, Union
+from uuid import UUID
 from domain.enums.auth import TokenPurpose
 
 
@@ -5,12 +7,23 @@ class BaseError(Exception):
     """Base exception for all domain errors."""
 
     def __init__(self, message: str, error_code: str = None, details: dict = None):
+        super().__init__(message)
         self.message = message
         self.error_code = error_code
         self.details = details or {}
 
     def __str__(self):
         return f"{self.__class__.__name__}: {self.message}"
+
+    def __reduce__(self):
+        return (
+            self.__class__,
+            (
+                getattr(self, "message", "Base exception message"),
+                getattr(self, "error_code", None),
+                getattr(self, "details", {}),
+            ),
+        )
 
 
 # Non-specific error.
@@ -90,6 +103,56 @@ class DatasetNameAlreadyExistError(BaseError):
             message=message,
             error_code="DATASET_NAME_ALREADY_EXISTS_ERROR",
             details=details,
+        )
+
+
+class DatasetNotFoundError(BaseError):
+    """Raised when dataset doesnt exists in the system."""
+
+    def __init__(self, identifier: Optional[Union[str, UUID]] = None):
+        message = (
+            f"Dataset with identifier `{str(identifier)}` doesnt exists in the system"
+            or "Dataset doesnt exists"
+        )
+        details = {}
+        if identifier:
+            details = {"identifier": str(identifier)}
+        super().__init__(
+            message=message, error_code="DATASET_NOT_FOUND", details=details
+        )
+
+
+# Data source related error
+class DataSourceNotFoundError(BaseError):
+    "Raised when data source doesnt exists in the system."
+
+    def __init__(self, identifier: Optional[Union[str, UUID]] = None):
+        message = (
+            f"Data source with identifier `{str(identifier)}` doesnt exists in the system"
+            or "Data source doesnt exists"
+        )
+        details = {}
+        if identifier:
+            details = {"identifier": str(identifier)}
+        super().__init__(
+            message=message, error_code="DATA_SOURCE_NOT_FOUND", details=details
+        )
+
+
+# Extraction related error
+class NotEnoughReviewsError(BaseError):
+    "Raised when reviews less than the desired number"
+
+    def __init__(self, n: int):
+        message = (
+            "Not enough number of reviews to be extracted. Must at least provide 2 reviews"
+            or f"Not enough number of reviews to be extracted. Must at least provide 2 reviews. Got {n}"
+        )
+        details = {}
+        if n:
+            details["number_of_reviews"] = n
+        super().__init__(
+            message=message, error_code="NOT_ENOUGH_REVIEW", details=details
         )
 
 

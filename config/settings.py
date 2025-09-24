@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, computed_field, PostgresDsn
+from pydantic import Field, computed_field, PostgresDsn, RedisDsn
 from pydantic_core import MultiHostUrl
 from typing import Optional
 
@@ -23,6 +23,8 @@ class Settings(BaseSettings):
         "defaultsecretkeyeventhisisnotpossibletohappenedtho", alias="JWT_SECRET_KEY"
     )
     jwt_algorithm: str = Field("HS256", alias="JWT_ALGORITHM")
+    n_topic_store: int = Field(50, alias="N_TOPIC_STORE")
+    scraping_auth_key: str = Field("noneexistence", alias="SCRAPING_AUTH_KEY")
 
     @computed_field
     @property
@@ -57,6 +59,9 @@ class Settings(BaseSettings):
 
 
 class DevSettings(Settings):
+    redis_password: str = Field("default", alias="DEV_REDIS_PASSWORD")
+    redis_port: int = Field(6379, alias="DEV_REDIS_PORT")
+    redis_host: str = Field("localhost", alias="DEV_REDIS_HOST")
     postgres_user: str = Field("myuser", alias="DEV_POSTGRES_USER")
     postgres_password: str = Field("mypassword", alias="DEV_POSTGRES_PASSWORD")
     postgres_db: str = Field("mydb", alias="DEV_POSTGRES_DB")
@@ -87,8 +92,22 @@ class DevSettings(Settings):
             path=self.postgres_db,
         )
 
+    @computed_field
+    @property
+    def redis_url(self) -> RedisDsn:
+        return MultiHostUrl.build(
+            scheme="redis",
+            password=self.redis_password,
+            host=self.redis_host,
+            port=self.redis_port,
+            path="0",
+        )
+
 
 class ProdSettings(Settings):
+    redis_password: str = Field("default", alias="PROD_REDIS_PASSWORD")
+    redis_port: int = Field(6379, alias="PROD_REDIS_PORT")
+    redis_host: str = Field("localhost", alias="PROD_REDIS_HOST")
     postgres_user: str = Field("myuser", alias="PROD_POSTGRES_USER")
     postgres_password: str = Field("mypassword", alias="PROD_POSTGRES_PASSWORD")
     postgres_db: str = Field("mydb", alias="PROD_POSTGRES_DB")
@@ -117,6 +136,17 @@ class ProdSettings(Settings):
             host=self.postgres_host,
             port=self.postgres_port,
             path=self.postgres_db,
+        )
+
+    @computed_field
+    @property
+    def redis_url(self) -> RedisDsn:
+        return MultiHostUrl.build(
+            scheme="redis",
+            password=self.redis_password,
+            host=self.redis_host,
+            port=self.redis_port,
+            path="0",
         )
 
 

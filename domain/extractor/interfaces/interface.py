@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Optional
 
 from domain.enums.texts import TextSentiment
 
@@ -38,13 +38,10 @@ class ExtractorInterface(ABC):
     #     pass
 
     @abstractmethod
-    def extract(self, text: list[str]) -> tuple[Any, Any]:
-        """Implementation of extracting topic insights from the given list of text.
-
-        Args:
-            text (list[str]): List of reviews that need to be extracted.
-
-        Returns:
-            tuple[Any, Any]: A tuple of pandas DataFrame that contains trending topics and frequently mentioned topics.
-        """
+    def extract(
+        self,
+        review_data: list[tuple],
+        top_n: int,
+        language: Optional[str] = "indonesian",
+    ):
         pass

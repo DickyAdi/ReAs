@@ -10,14 +10,22 @@ if TYPE_CHECKING:
 @dataclass
 class InsightEntity:
     topic: str
-    score: float
+    emerging_score: float
+    trend_score: float
+    dataset_id: UUID
     id: Optional[UUID] = None  # derived from database
     created_at: Optional[datetime] = None  # derived from database
     updated_at: Optional[datetime] = None  # derived from database
-    dataset_id: Optional[UUID] = None  # derived from database
 
     dataset: Optional["DatasetEntity"] = None
 
     @classmethod
-    def create(cls, topic: str, score: float) -> "InsightEntity":
-        return cls(topic=topic, score=score)
+    def create(
+        cls, topic: str, emerging_score: float, trend_score: float, dataset_id: UUID
+    ) -> "InsightEntity":
+        return cls(
+            topic=topic,
+            emerging_score=emerging_score,
+            trend_score=trend_score,
+            dataset_id=dataset_id,
+        )

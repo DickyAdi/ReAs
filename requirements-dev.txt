@@ -22,3 +22,5 @@ Authlib
 httpx
 aiosmtplib
 ua-parser[regex]
+celery[redis]
+redis

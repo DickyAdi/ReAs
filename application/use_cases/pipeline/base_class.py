@@ -1,9 +1,13 @@
+# ! unused
 from typing import Any, TypedDict
 
 
 from application.predictor import PredictorApplication
 from application.extractor import ExtractorApplication
+from application.data_sources import DataSourceApplication
 
+from domain.entities.reviews import ReviewEntity
+from domain.uow import UnitOfWorkInterface
 from domain.predictor import PredictorInterface
 from domain.extractor import ExtractorInterface
 from domain.ml.interfaces.interface import inferenceInterface
@@ -23,11 +27,14 @@ class ExtractionPipelineDictType(TypedDict):
 class BasePipelineFlow:
     def __init__(
         self,
+        uow: UnitOfWorkInterface,
         prediction_service: PredictorInterface,
         extraction_service: ExtractorInterface,
     ):
+        self.uow = uow
         self.prediction_app = PredictorApplication(service=prediction_service)
         self.extraction_app = ExtractorApplication(service=extraction_service)
+        self.data_source_app = DataSourceApplication(self.uow)
         # self.model = model_service
 
     def run_predict_extract(
@@ -74,3 +81,5 @@ class BasePipelineFlow:
             "negative_frequent_topics": negative_frequent,
             "total_valid_reviews": len(predicted),
         }
+
+    def run_prediction(self, reviews: Any): ...

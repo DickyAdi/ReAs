@@ -1,2 +1,2 @@
-from .text import ReviewEntity
+from .text import ReviewEntity, ReviewTypedDict
 from .interfaces import ReviewInterface

@@ -1,2 +1,2 @@
-from .dataset import DatasetEntity
+from .dataset import DatasetEntity, DatasetTypedDict
 from .interfaces import DatasetInterface

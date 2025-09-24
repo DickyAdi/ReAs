@@ -31,4 +31,7 @@ from .exception import (
     FileTooLarge,
     SecurityError,
     DatasetNameAlreadyExistError,
+    DatasetNotFoundError,
+    DataSourceNotFoundError,
+    NotEnoughReviewsError,
 )

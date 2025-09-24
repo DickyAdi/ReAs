@@ -1,4 +1,4 @@
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING, TypedDict
 from datetime import datetime
 from uuid import UUID
 from dataclasses import dataclass
@@ -9,6 +9,17 @@ if TYPE_CHECKING:
 
 # from domain.enums.datasets import DatasetProvider
 from domain.enums.datasets import DatasetStatus
+
+
+class DatasetTypedDict(TypedDict):
+    name: str
+    issuer_id: int
+    is_empty: bool
+    status: DatasetStatus
+    total_reviews: int
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
 
 
 @dataclass

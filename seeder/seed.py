@@ -127,6 +127,14 @@ async def seed_user_admin_superadmin(db: AsyncSession):
         "role": Role.superadmin,
         "provider": AuthProvider.local,
     }
+    user_creds = {
+        "name": "User1",
+        "email": "user@example.com",
+        "password": "mypassword123",
+        "is_validated": True,
+        "role": Role.user,
+        "provider": AuthProvider.local,
+    }
     create_superadmin = await flow(  # noqa
         db=db,
         name=superadmin_creds["name"],
@@ -147,6 +155,17 @@ async def seed_user_admin_superadmin(db: AsyncSession):
         idempotency_key=uuid4(),
         is_validated=admin_creds["is_validated"],
         role=admin_creds["role"],
+        commit=False,
+    )
+    _create_user = await flow(
+        db=db,
+        name=user_creds["name"],
+        email=user_creds["email"],
+        password=user_creds["password"],
+        provider=user_creds["provider"],
+        idempotency_key=uuid4(),
+        is_validated=user_creds["is_validated"],
+        role=user_creds["role"],
         commit=False,
     )
     print("[SEED] Seed admin & superadmin finished.")

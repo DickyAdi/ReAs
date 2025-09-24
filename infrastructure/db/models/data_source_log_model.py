@@ -43,7 +43,7 @@ class DataSource(Base):
     # * related entity
 
     reviews: Mapped[list["Reviews"]] = relationship(
-        "Reviews", back_populates="data_source"
+        "Reviews", back_populates="data_source", cascade="all, delete"
     )
 
     def to_entity(self) -> "DataSourceEntity":

@@ -1,5 +1,8 @@
+from typing import Any
+
 from domain.predictor import PredictorInterface
 from domain.ml.interfaces.interface import inferenceInterface
+from domain.entities.reviews import ReviewEntity
 
 
 class PredictorApplication:
@@ -18,3 +21,14 @@ class PredictorApplication:
         """
         results = self.service.predict(data=texts, model=model)
         return results
+
+    def predict_from_class(
+        self, reviews: list[ReviewEntity], model: inferenceInterface
+    ):
+        texts = [getattr(review, "text") for review in reviews]
+        results = self.service.predict(data=texts, model=model)
+        return results
+
+    def clean(self, reviews: list[dict]):
+        # return self.service.clean(data=reviews)
+        return self.service.clean(data=reviews)

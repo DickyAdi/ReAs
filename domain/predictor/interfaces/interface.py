@@ -7,7 +7,7 @@ class PredictorInterface(ABC):
     """Domain contract for predictor to predict texts sentiment."""
 
     @abstractmethod
-    def clean(self, texts: list[str]) -> list[str]:
+    def clean(self, data: list[dict]) -> list[dict]:
         """Implementation of texts pre-processing/cleaning.
 
         Args:

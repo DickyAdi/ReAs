@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
-from ..dataset import DatasetEntity
+from typing import Optional
+
+from ..dataset import DatasetEntity, DatasetTypedDict
 
 
 class DatasetInterface(ABC):
@@ -15,3 +17,9 @@ class DatasetInterface(ABC):
 
     @abstractmethod
     async def get_datasets(self, limit: int, offset: int): ...
+
+    @abstractmethod
+    async def get_dataset_by_issuer(self, id: int, email: str): ...
+
+    @abstractmethod
+    async def edit_dataset(self, dataset, values: DatasetTypedDict): ...

@@ -1,6 +1,8 @@
-from application.io import CsvApplication
+#! doesnt used
+from application.io import CsvApplication, ReviewCsvStreamerApplication
 
-from domain.io.interfaces.csv import CsvInterface
+from domain.uow import UnitOfWorkInterface
+from domain.io.interfaces import StreamerInterface, CsvInterface
 from domain.predictor import PredictorInterface
 from domain.extractor import ExtractorInterface
 from domain.ml.interfaces.interface import inferenceInterface
@@ -39,3 +41,21 @@ class PipelineExtractCsvFlow(BasePipelineFlow):
         texts = self.csv_app.get_text(content=content, text_column=text_column)
         result = self.run_predict_extract(text=texts, model=model)
         return result
+
+
+# class PipelineExtractCsvStreamFlow(BasePipelineFlow):
+#     def __init__(
+#         self,
+#         csv_stream_service: StreamerInterface,
+#         prediction_service: PredictorInterface,
+#         extraction_service: ExtractorInterface,
+#         uow: UnitOfWorkInterface,
+#     ):
+#         super().__init__(
+#             prediction_service=prediction_service,
+#             extraction_service=extraction_service,
+#             uow=uow,
+#         )
+#         self.csv_stream = ReviewCsvStreamerApplication(service=csv_stream_service)
+
+#     def __call__(self, file, model: inferenceInterface): ...

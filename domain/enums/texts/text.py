@@ -3,6 +3,7 @@ from enum import Enum
 
 class TextPlatform(str, Enum):
     gmaps = "google maps"
+    user = "user"
 
 
 class TextSentiment(str, Enum):

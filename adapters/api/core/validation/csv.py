@@ -41,7 +41,7 @@ async def validate_csv_metadata(file: UploadFile):
         FileTooLarge: _description_
 
     Returns:
-        _type_: _description_
+        File bytes
     """
     valid_content_type = ["text/csv", "application/vnd.ms-excel"]
     sus_file_name = [".exe", ".bat", ".cmd", ".php", ".js", ".jsp"]

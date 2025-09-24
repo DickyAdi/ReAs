@@ -18,7 +18,7 @@ from domain.exceptions import BaseError
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.model = load_model()
+    # app.state.model = load_model()
     app.state.executor = get_executor()
     yield
     if hasattr(app.state, "model"):
