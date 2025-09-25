@@ -32,7 +32,7 @@ class InsightService(InsightInterface):
                 raise exc
         return orm_obj
 
-    async def upsert_insights(self, insights: list[Insights]):
+    async def upsert_insights(self, insights: list[Insights]) -> list[UUID]:
         list_insights_dict = [insight.to_dict() for insight in insights]
         stmt = insert(Insights).values(list_insights_dict)
         stmt = stmt.on_conflict_do_update(
@@ -42,13 +42,13 @@ class InsightService(InsightInterface):
                 "trend_score": stmt.excluded["trend_score"],
                 "updated_at": datetime.now(timezone.utc),
             },
-        )
+        ).returning(Insights.id)
         try:
-            await self.db.execute(stmt)
+            result = await self.db.execute(stmt)
+            return result.scalars().all()
         except SQLAlchemyError as e:
             exc = DatabaseErrorMapper.map_error(e)
             raise exc
-        return True
 
     async def upsert_assoc_table(self, assoc_values: list[dict]):
         assoc_val = [

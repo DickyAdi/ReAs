@@ -21,7 +21,8 @@ class ExtractionUseCase:
     def extract(
         self,
         reviews: list[Any],
-        top_n: int = settings.n_topic_store,
+        top_n: int = 20,  # debugging/testing purposes
+        # top_n: int = settings.n_topic_store,
         language: Optional[str] = "indonesian",
     ):
         positive_extract = self.extraction_app.extract(

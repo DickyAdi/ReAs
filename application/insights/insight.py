@@ -83,16 +83,15 @@ class InsightApplication:
             generate_defaults=True,
             dataset_id=dataset_id,
         )
-        _is_upserted = await self.uow.insights.upsert_insights(insights=insights)
-        insights_id = [getattr(insight, "id") for insight in insights]
+        upserted_id = await self.uow.insights.upsert_insights(insights=insights)
         assoc_val = [
             {"insight_id": insight_id, "review_id": reviews_id}
-            for insight_id, reviews_id in zip(insights_id, insight_review_mappings)
+            for insight_id, reviews_id in zip(upserted_id, insight_review_mappings)
         ]
         _is_assoc_upserted = await self.uow.insights.upsert_assoc_table(
             assoc_values=assoc_val
         )
-        return _is_upserted and _is_assoc_upserted
+        return (upserted_id is not None) and _is_assoc_upserted
 
     @enforce_transaction
     async def get_insights_by_dataset_id(

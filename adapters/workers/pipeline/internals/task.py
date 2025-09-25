@@ -105,7 +105,7 @@ def distribute_inference(
                 rating_column=rating_column,
                 batch_size=batch_size,
             )
-        )
+        ).get_streamer()
         with streamer as s:
             while item := s.next_batch():
                 inference_tasks.append(
@@ -121,15 +121,19 @@ def distribute_inference(
                 )
     if not inference_tasks:
         raise ValueError("No tasks available")
-    workflow = chord(
-        inference_tasks,
-        (
-            insert_reviews_to_db.s()
-            | extract_insight.s(language="indonesian")
-            | upsert_insights.s()
-            | finish_extract.s()
-        ),
-    ).on_error(rollback_pipeline.s(dataset_id=dataset_id, provider_ref=provider_ref))
+    workflow = (
+        chord(
+            inference_tasks,
+            (
+                insert_reviews_to_db.s()
+                | extract_insight.s(language="indonesian")
+                | upsert_insights.s()
+                | finish_extract.s()
+            ),
+        )
+        .on_error(rollback_pipeline.s(dataset_id=dataset_id, provider_ref=provider_ref))
+        .delay()
+    )
     return workflow
 
 
