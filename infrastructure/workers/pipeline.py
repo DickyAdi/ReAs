@@ -1,4 +1,4 @@
-from typing import BinaryIO, Optional, Union
+from typing import Optional, Union
 
 from domain.workers import WorkerInterface
 from adapters.workers.pipeline import PipelineWorker

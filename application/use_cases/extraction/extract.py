@@ -21,8 +21,7 @@ class ExtractionUseCase:
     def extract(
         self,
         reviews: list[Any],
-        top_n: int = 20,  # debugging/testing purposes
-        # top_n: int = settings.n_topic_store,
+        top_n: int = settings.n_topic_store,
         language: Optional[str] = "indonesian",
     ):
         positive_extract = self.extraction_app.extract(
@@ -45,7 +44,4 @@ class ExtractionUseCase:
         dataset_id: UUID,
     ):
         review_app = ReviewApplication(uow=uow)
-        # return await review_app.get_reviews_by_dataset_id(
-        #     dataset_id=dataset_id, offset=offset, limit=limit
-        # )
         return await review_app.fetch_reviews_by_dataset_id(dataset_id=dataset_id)

@@ -34,4 +34,5 @@ from .exception import (
     DatasetNotFoundError,
     DataSourceNotFoundError,
     NotEnoughReviewsError,
+    UnsupportedDomainToScrape,
 )

@@ -413,6 +413,18 @@ class FileTooLarge(BaseError):
         super().__init__(message=message, error_code="FILE_TOO_LARGE", details=details)
 
 
+# Scraping error
+class UnsupportedDomainToScrape(BaseError):
+    """Raised when user pass unsupported domain for scraping."""
+
+    def __init__(self, platform: str, message: str = None):
+        message = message or f"Ensure the given url match the expected {platform} url"
+        details = {"platform": platform}
+        super().__init__(
+            message=message, error_code="UNSUPPORTED_DOMAIN_TO_SCRAPE", details=details
+        )
+
+
 # Security error
 class SecurityError(BaseError):
     """Raised when suspicious behavior detected."""

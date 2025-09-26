@@ -3,9 +3,10 @@ from typing import Annotated, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-from ...services.dataset import get_dataset_app
+# from ...services.dataset import get_dataset_app
 from ...services.auth import min_tier, get_user_from_any_schema
 from ...core.validation.csv import validate_csv_metadata
+from ...core.validation.gmaps_url import validate_gmaps_url
 from ...schemas.response import ResponseCreated, ResponseAccepted, ResponseOk
 from infrastructure.db.models.user_model import User
 from infrastructure.db import UnitOfWork, get_db
@@ -28,13 +29,9 @@ router = APIRouter(
 @router.post("/create")
 async def create_dataset(
     dataset_name: Annotated[str, Body(embed=True)] = ...,
-    # dataset_app: DatasetApplication = Depends(get_dataset_app),
     db: AsyncSession = Depends(get_db),
     curr_user: User = Depends(get_user_from_any_schema()),
 ):
-    # dataset = await dataset_app.create_dataset(
-    #     dataset_name=dataset_name, issuer_id=curr_user.id
-    # )
     uow = UnitOfWork(db=db)
     async with uow as u:
         dataset_app = DatasetApplication(uow=u)
@@ -56,10 +53,11 @@ async def create_dataset(
 async def upload_csv(
     text_column: str = Form(...),
     file: UploadFile = File(...),
-    dataset_id: UUID = Form(...),
+    dataset_id: str = Form(...),
     rating_column: Optional[str] = Form(),
     db: AsyncSession = Depends(get_db),
 ):
+    dataset_id = UUID(hex=dataset_id)
     secured_file = await validate_csv_metadata(file=file)
     worker = DatasetPipelineOrchestrator(
         service=DatasetPipeline(
@@ -78,10 +76,11 @@ async def upload_csv(
 @router.post("/extract/scrape")
 async def extract_scrape(
     gmaps_url: str = Form(...),
-    dataset_id: UUID = Form(...),
+    dataset_id: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
-    secured_url = gmaps_url  # todo: later validate and secure this url
+    dataset_id = UUID(hex=dataset_id)
+    secured_url = validate_gmaps_url(gmaps_url)
     worker = DatasetPipelineOrchestrator(
         uow=UnitOfWork(db=db),
         service=DatasetPipeline(

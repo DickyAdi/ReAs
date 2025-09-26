@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Optional, Union, BinaryIO
+from typing import Optional, Union
 import requests
 import ijson
 from datetime import datetime, timezone

@@ -112,7 +112,11 @@ class ExtractionService(ExtractorInterface):
         review_idx, word_idx = word_matrix.nonzero()
         review_ids = np.array([docs[idx][0] for idx in review_idx])
 
-        top_n_idx = np.argpartition(-emerging_score, top_n)[:top_n]
+        if emerging_score.shape[0] < top_n:
+            top_n_idx = np.argsort(-emerging_score)
+        else:
+            top_n_idx = np.argpartition(-emerging_score, top_n)[:top_n]
+
         top_n_idx = top_n_idx[np.argsort(-emerging_score[top_n_idx])]
 
         extracted = []
