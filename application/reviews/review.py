@@ -129,7 +129,7 @@ class ReviewApplication:
             )
             review = chunk["data"]
             reviews.extend(review)
-            if len(reviews) < limit:
+            if not review:
                 break
             offset += limit
         return reviews

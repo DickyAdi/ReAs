@@ -1,7 +1,9 @@
 import os
 import ijson
+from ijson.common import IncompleteJSONError
 from typing import Optional, Self
 from datetime import datetime, timezone
+from itertools import chain
 import gc
 
 from domain.io.interfaces import StreamerInterface
@@ -12,6 +14,7 @@ class JsonStreamer(StreamerInterface):
     def __init__(
         self,
         raw_json,
+        prefix: str,
         text_column: str = "review_text",
         rating_column: str = "review_rating",
         batch_size: Optional[int] = 512,
@@ -28,14 +31,17 @@ class JsonStreamer(StreamerInterface):
         # self.data = open(raw_json, "rb")
         self.text_column = text_column
         self.rating_column = rating_column
+        self.prefix = prefix
 
-    def __enter__(self, prefix: str) -> Self:
-        sniffer = ijson.items(self.data, prefix)
-        if not next(sniffer):
-            raise ValueError(f"Invalid prefix, {prefix} got no results.")
-        del sniffer
-        gc.collect()  # free up memory
-        self.data = ijson.items(self.data, prefix)
+    def __enter__(self) -> Self:
+        sniffer = ijson.items(self.data, self.prefix, multiple_values=True)
+        try:
+            first = next(sniffer)
+        except StopIteration:
+            raise ValueError(f"Invalid prefix, {self.prefix} got no results")
+        except IncompleteJSONError:
+            pass
+        self.reader = chain([first], sniffer)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -47,7 +53,7 @@ class JsonStreamer(StreamerInterface):
         batch = super().next_batch()
         extracted = []
         for b in batch:
-            if [self.text_column, self.rating_column] not in list(b.keys()):
+            if self.text_column not in b.keys() or self.rating_column not in b.keys():
                 raise ColumnNotFoundError(
                     text_column=f"{self.text_column}, {self.rating_column}",
                     available_column=list(b.keys()),

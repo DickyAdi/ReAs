@@ -53,6 +53,7 @@ class DatasetPipelineOrchestrator:
         language: TextLanguage,
         dataset_id: Optional[UUID] = None,
         dataset_name: Optional[str] = None,
+        **kwargs,
     ):
         # * pass model name to the celery worker, which in this case is self.service.run()
         edited_dataset, source_log = await self.log_ingress_data(
@@ -65,5 +66,6 @@ class DatasetPipelineOrchestrator:
             provider_ref=source_log.id,
             language=language,
             model_name="default",
+            **kwargs,
         )
         return task_id

@@ -27,15 +27,11 @@ class PipelineWorker:
         provider_ref: UUID,
         language: TextLanguage,
         model_name: Optional[str] = "default",
-        query_params: Optional[dict] = None,
-        scrape_url: Optional[str] = None,
     ):
         if isinstance(self.data, str):
-            if not scrape_url:
-                raise ValueError("`scrape_url` must not be None")
             return (
                 (
-                    scrape_gmaps.s(resource_url=scrape_url, query_params=query_params)
+                    scrape_gmaps.s(resource_url=self.data)
                     | distribute_inference.s(
                         text_column="None",
                         dataset_id=dataset_id,

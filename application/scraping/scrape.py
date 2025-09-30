@@ -14,14 +14,12 @@ class ScrapingApplication:
 
     def build_hit(
         self,
-        query_params: dict,
         resource_url: str,
         base_url: Optional[str] = None,
         headers: Optional[dict] = None,
     ):
         data = self.service.build_hit(
             base_url=base_url,
-            query_params=query_params,
             resource_url=resource_url,
             headers=headers,
         )

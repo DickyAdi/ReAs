@@ -10,18 +10,16 @@ from config.settings import settings
 class ScrapingService(ScrapingInterface):
     def build(
         self,
-        query_params: dict,
         resource_url: str,
-        base_url: Optional[str] = None,
+        base_url: str = "https://api.outscraper.cloud/maps/reviews-v3",
     ):
-        base_query_params = {"ignoreEmpty": True, "reviewsLimit": 0, "async": True}
-        base_url = (
-            "https://api.outscraper.cloud/maps/reviews-v3" if not base_url else base_url
-        )
-        if "query" not in list(query_params.keys()):
-            cid = self.get_cid(gmaps_url=resource_url)
-            query_params["query"] = cid
-            query_params = {**base_query_params, **query_params}
+        query_params = {
+            "query": self.get_cid(resource_url),
+            "ignoreEmpty": True,
+            "reviewsLimit": 0,
+            "async": True,
+            "language": "id",
+        }
         self.resource = f"{base_url}?{urlencode(query_params)}"
 
     def hit(self, headers: Optional[dict] = None):

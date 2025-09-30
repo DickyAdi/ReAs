@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 from celery import chord, Task
 import io
+import gzip
 
 from ...main import app, get_predict_uc
 from ...database import SessionFactory
@@ -29,9 +30,10 @@ from infrastructure.io.csv_review_streamer import ReviewCsvStreamer
 
 
 @app.task(name="extract-scrape_gmaps")
-def scrape_gmaps(resource_url: str, query_params: dict):
+def scrape_gmaps(resource_url: str):
     data = ScrapingApplication(service=ScrapingService()).build_hit(
-        resource_url=resource_url, query_params=query_params
+        resource_url=resource_url,
+        base_url="https://api.outscraper.cloud/maps/reviews-v3",
     )
     req_id = data.json().get("id")
     if not req_id:
@@ -42,19 +44,23 @@ def scrape_gmaps(resource_url: str, query_params: dict):
 # * Due to celery pickleable, for now we cannot use polling in a separate task to return requests http response.
 # * The workaround is putting the polling within the distribute_inference tasks.
 # * Overall the flow for scrape is [user asks scrape -> send scrape request and pass the id to distribute_inference -> poll the results within the task]
-# * later migrate to MinIO if possible
+# * later migrate to MinIO to store temp json result and only pass the path to the next tasks
 
 
 def poll_scrape_result(req_id):
     data = requests.get(f"https://api.outscraper.cloud/requests/{req_id}", stream=True)
-    parser = ijson.parse(data.raw)
+    data.raise_for_status()
+    data = gzip.GzipFile(fileobj=data.raw)
+    data = io.BytesIO(data.read())
+    parser = ijson.parse(data)
     status = None
     for prefix, event, value in parser:
         if prefix == "status" and event == "string":
             status = value
             break
     if status == "Success":
-        return data.raw
+        data.seek(0)
+        return data
     return None
 
 
@@ -78,13 +84,17 @@ def distribute_inference(
     inference_tasks = []
     time_now = datetime.now(timezone.utc)
     if isinstance(data, str):
-        data = poll_scrape_result(data)
-        if not data:
+        fetched_data = poll_scrape_result(data)
+        if not fetched_data:
             raise self.retry()
         streamer = JsonStreamerApplication(
-            service=JsonStreamer(raw_json=data, batch_size=batch_size)
+            service=JsonStreamer(
+                raw_json=fetched_data,
+                batch_size=batch_size,
+                prefix="data.item.reviews_data.item",
+            )
         ).get_streamer()
-        with streamer(prefix="data.item.reviews_data.item") as s:
+        with streamer as s:
             while item := s.next_batch():
                 inference_tasks.append(
                     batch_inference.s(
@@ -97,6 +107,7 @@ def distribute_inference(
                         model_name=model_name,
                     )
                 )
+        fetched_data.close()
     else:
         streamer = ReviewCsvStreamerApplication(
             service=ReviewCsvStreamer(
