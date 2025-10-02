@@ -15,16 +15,16 @@ class InsightApplication:
     async def create_insight(
         self,
         topic: str,
-        emerging_score: float,
-        trend_score: float,
+        relevancy_score: float,
+        consistency_score: float,
         dataset_id: UUID,
         commit: Optional[bool] = True,
         generate_defaults: Optional[bool] = False,
     ):
         domain_obj = InsightEntity.create(
             topic=topic,
-            emerging_score=emerging_score,
-            trend_score=trend_score,
+            relevancy_score=relevancy_score,
+            consistency_score=consistency_score,
             dataset_id=dataset_id,
         )
         orm_obj = await self.uow.insights.create_insight(
@@ -45,8 +45,8 @@ class InsightApplication:
             insights = [
                 await self.create_insight(
                     topic=data.get("topic"),
-                    emerging_score=data.get("emerging_score"),
-                    trend_score=data.get("trend_score"),
+                    relevancy_score=data.get("relevancy_score"),
+                    consistency_score=data.get("consistency_score"),
                     dataset_id=dataset_id,  # injected
                     commit=commit,
                     generate_defaults=generate_defaults,
@@ -57,8 +57,8 @@ class InsightApplication:
             insights = [
                 await self.create_insight(
                     topic=insight_data.get("topic"),
-                    emerging_score=insight_data.get("emerging_score"),
-                    trend_score=insight_data.get("trend_score"),
+                    relevancy_score=insight_data.get("relevancy_score"),
+                    consistency_score=insight_data.get("consistency_score"),
                     dataset_id=dataset_id,  # injected
                     commit=commit,
                     generate_defaults=generate_defaults,

@@ -268,24 +268,27 @@ def upsert_insights(extracted_data):
     run_sync(
         upsert_job(extracted=all_extracted, dataset_id=dataset_id)
     )  # inject dataset id
-    return (len(all_extracted), dataset_id)
+    return dataset_id
 
 
 @app.task(name="extract-finish_extract")
-def finish_extract(payload):
-    async def job(n_reviews: int, d_id):
+def finish_extract(dataset_id):
+    async def job(d_id):
         uow = SessionFactory.create()
         async with uow as u:
             dataset_app = DatasetApplication(uow=u)
+            review_app = ReviewApplication(uow=u)
+            review_count = await review_app.count_review_in_dataset(
+                dataset_id=dataset_id
+            )
             status = {
                 "status": DatasetStatus.extracted,
                 "is_empty": False,
-                "total_reviews": n_reviews,
+                "total_reviews": review_count,
             }
             _edited_dataset = await dataset_app.edit_dataset(
                 changed_value=status, id=d_id, commit=False
             )
             await u.commit()
 
-    reviews_number, dataset_id = payload
-    run_sync(job(n_reviews=reviews_number, d_id=dataset_id))
+    run_sync(job(d_id=dataset_id))

@@ -16,7 +16,6 @@ from ..db import Base
 
 from domain.entities.reviews import ReviewEntity, ReviewTypedDict
 from domain.enums.texts import TextLanguage, TextPlatform, TextSentiment
-# from domain.enums.datasets import DatasetProvider
 
 
 class Reviews(Base):
@@ -71,7 +70,10 @@ class Reviews(Base):
 
     dataset: Mapped["Datasets"] = relationship("Datasets", back_populates="reviews")
     insights: Mapped["Insights"] = relationship(
-        "Insights", secondary="insight_reviews", back_populates="reviews"
+        "Insights",
+        secondary="insight_reviews",
+        back_populates="reviews",
+        passive_deletes=True,
     )
     data_source: Mapped["DataSource"] = relationship(
         "DataSource", back_populates="reviews", passive_deletes=True

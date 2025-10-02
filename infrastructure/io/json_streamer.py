@@ -28,13 +28,12 @@ class JsonStreamer(StreamerInterface):
             self._should_close = False
         else:
             raise TypeError("Invalid type, must be path like or openable json object")
-        # self.data = open(raw_json, "rb")
         self.text_column = text_column
         self.rating_column = rating_column
         self.prefix = prefix
 
     def __enter__(self) -> Self:
-        sniffer = ijson.items(self.data, self.prefix, multiple_values=True)
+        sniffer = ijson.items(self.data, self.prefix)
         try:
             first = next(sniffer)
         except StopIteration:

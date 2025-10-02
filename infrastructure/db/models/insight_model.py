@@ -27,8 +27,8 @@ class Insights(Base):
     )
 
     topic: Mapped[str] = mapped_column(nullable=False)
-    emerging_score: Mapped[float] = mapped_column(DOUBLE_PRECISION, nullable=False)
-    trend_score: Mapped[float] = mapped_column(DOUBLE_PRECISION, nullable=False)
+    relevancy_score: Mapped[float] = mapped_column(DOUBLE_PRECISION, nullable=False)
+    consistency_score: Mapped[float] = mapped_column(DOUBLE_PRECISION, nullable=False)
 
     created_at: Mapped[DateTime] = mapped_column(
         DateTime, default=datetime.now(timezone.utc), nullable=False
@@ -45,7 +45,10 @@ class Insights(Base):
 
     dataset: Mapped["Datasets"] = relationship("Datasets", back_populates="insights")
     reviews: Mapped[list["Reviews"]] = relationship(
-        "Reviews", secondary="insight_reviews", back_populates="insights"
+        "Reviews",
+        secondary="insight_reviews",
+        back_populates="insights",
+        passive_deletes=True,
     )
     __table_args__ = (
         UniqueConstraint("dataset_id", "topic", name="uq_topic_per_dataset"),
@@ -58,8 +61,8 @@ class Insights(Base):
             dataset=self.dataset,
             dataset_id=self.dataset_id,
             id=self.id,
-            emerging_score=self.emerging_score,
-            trend_score=self.trend_score,
+            relevancy_score=self.relevancy_score,
+            consistency_score=self.consistency_score,
             topic=self.topic,
         )
 
@@ -71,16 +74,16 @@ class Insights(Base):
             return cls(
                 id=uuid4(),
                 topic=insight.topic,
-                emerging_score=insight.emerging_score,
-                trend_score=insight.trend_score,
+                relevancy_score=insight.relevancy_score,
+                consistency_score=insight.consistency_score,
                 dataset_id=insight.dataset_id,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
         return cls(
             topic=insight.topic,
-            emerging_score=insight.emerging_score,
-            trend_score=insight.trend_score,
+            relevancy_score=insight.relevancy_score,
+            consistency_score=insight.consistency_score,
             dataset_id=insight.dataset_id,
         )
 

@@ -118,3 +118,12 @@ class ReviewService(ReviewInterface):
         except SQLAlchemyError as e:
             exc = DatabaseErrorMapper.map_error(e)
             raise exc
+
+    async def count_review_in_dataset(self, dataset_id: UUID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Reviews)
+            .where(Reviews.dataset_id == dataset_id)
+        )
+        res = await self.db.execute(stmt)
+        return res.scalar_one()

@@ -117,9 +117,6 @@ class ReviewApplication:
 
     @enforce_transaction
     async def fetch_reviews_by_dataset_id(self, dataset_id: UUID):
-        # reviews = await self.uow.reviews.get_reviews_by_dataset_id(
-        #     dataset_id=dataset_id, offset=offset, limit=limit
-        # )
         reviews = []
         offset = 0
         limit = 100
@@ -133,3 +130,7 @@ class ReviewApplication:
                 break
             offset += limit
         return reviews
+
+    @enforce_transaction
+    async def count_review_in_dataset(self, dataset_id: UUID) -> int:
+        return await self.uow.reviews.count_review_in_dataset(dataset_id=dataset_id)

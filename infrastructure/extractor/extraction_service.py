@@ -48,7 +48,6 @@ class ExtractionService(ExtractorInterface):
             }
             ind_stop |= added_stop
 
-        # Preprocess stopwords the same way scikit-learn would tokenize
         preprocessed = set()
         for word in ind_stop:
             cleaned = re.sub(r"[^a-zA-Z]", "", word.lower())
@@ -56,42 +55,18 @@ class ExtractionService(ExtractorInterface):
                 preprocessed.add(cleaned)
         return list(preprocessed)
 
-    # def extract(self, text: list[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
-    #     vectorizer = TfidfVectorizer(
-    #         stop_words=self._get_stopwords(), ngram_range=(2, 2)
-    #     )
-    #     docs = [doc for doc in text if len(doc.split()) > 2]
-    #     if not text or len(text) < 2 or not docs:
-    #         return (
-    #             pd.DataFrame(columns=["word", "score"]),
-    #             pd.DataFrame(columns=["word", "score"]),
-    #         )
-    #     word_matrix = vectorizer.fit_transform(docs)
-    #     words = vectorizer.get_feature_names_out()
-
-    #     # memory first code
-
-    #     count_matrix = (word_matrix > 0).sum(axis=0).A1
-    #     matrix_mean = word_matrix.mean(axis=0).A1
-    #     matrix_sq_mean = word_matrix.power(2).mean(axis=0).A1
-    #     std = np.sqrt(matrix_sq_mean - matrix_mean**2)
-    #     score = matrix_mean * std
-    #     score_trend = score * (count_matrix / len(docs))
-
-    #     # end memory first code
-
-    #     trend_topics = pd.DataFrame({"word": words, "score": score_trend})
-    #     frequent_topics = pd.DataFrame({"word": words, "score": score})
-    #     del word_matrix, std, matrix_mean, matrix_sq_mean
-    #     gc.collect()
-    #     return trend_topics, frequent_topics
-
     def extract(
         self,
         review_data: list[tuple],
         top_n: int,
         language: Optional[str] = "indonesian",
+        coverage_weight: float = 0.6,
+        intensity_weight: float = 0.4,
     ):
+        if coverage_weight + intensity_weight != 1.0:
+            raise ValueError(
+                f"Invalid weight. Sum of `coverage_weight` and `intensity_weight` must be equal to `1.0`. Got `{coverage_weight + intensity_weight}`"
+            )
         vectorizer = TfidfVectorizer(
             stop_words=self._get_stopwords(language=language), ngram_range=(2, 2)
         )
@@ -102,22 +77,25 @@ class ExtractionService(ExtractorInterface):
         words = vectorizer.get_feature_names_out()
         n_docs = word_matrix.shape[0]
 
-        count_matrix = (word_matrix > 0).sum(axis=0).A1
-        matrix_mean = word_matrix.mean(axis=0).A1
-        matrix_sq_mean = word_matrix.power(2).mean(axis=0).A1
-        std = np.sqrt(matrix_sq_mean - matrix_mean**2)
-        emerging_score = matrix_mean * std
-        score_trend = emerging_score * (count_matrix / n_docs)
+        X = word_matrix.tocsc()
+        doc_counts = np.diff(X.indptr)
+        coverage = doc_counts / n_docs
+
+        tfidf_sum = np.array(X.sum(axis=0).A1)
+        mean_tfidf = tfidf_sum / np.maximum(doc_counts, 1)
+
+        relevancy_score = (coverage**coverage_weight) * (mean_tfidf**intensity_weight)
+        consistency_score = np.sqrt(coverage)
+
+        if consistency_score.shape[0] < top_n:
+            top_n_idx = np.argsort(-consistency_score)
+        else:
+            top_n_idx = np.argpartition(-consistency_score, top_n)[:top_n]
+
+        top_n_idx = top_n_idx[np.argsort(-consistency_score[top_n_idx])]
 
         review_idx, word_idx = word_matrix.nonzero()
         review_ids = np.array([docs[idx][0] for idx in review_idx])
-
-        if emerging_score.shape[0] < top_n:
-            top_n_idx = np.argsort(-emerging_score)
-        else:
-            top_n_idx = np.argpartition(-emerging_score, top_n)[:top_n]
-
-        top_n_idx = top_n_idx[np.argsort(-emerging_score[top_n_idx])]
 
         extracted = []
         for i in top_n_idx:
@@ -125,10 +103,8 @@ class ExtractionService(ExtractorInterface):
             res = {
                 "topic": words[i],
                 "review_id": review_ids[mask].tolist(),
-                "emerging_score": emerging_score[i],
-                "trend_score": score_trend[i],
+                "relevancy_score": relevancy_score[i],
+                "consistency_score": consistency_score[i],
             }
             extracted.append(res)
         return extracted
-
-        # should've been done i guess

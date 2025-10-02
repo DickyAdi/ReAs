@@ -23,3 +23,6 @@ class ReviewInterface(ABC):
         offset: Optional[int] = 0,
         limit: Optional[int] = 0,
     ): ...
+
+    @abstractmethod
+    async def count_review_in_dataset(self, dataset_id: UUID) -> int: ...

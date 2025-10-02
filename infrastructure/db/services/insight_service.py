@@ -38,8 +38,8 @@ class InsightService(InsightInterface):
         stmt = stmt.on_conflict_do_update(
             index_elements=["dataset_id", "topic"],
             set_={
-                "emerging_score": stmt.excluded["emerging_score"],
-                "trend_score": stmt.excluded["trend_score"],
+                "relevancy_score": stmt.excluded["relevancy_score"],
+                "consistency_score": stmt.excluded["consistency_score"],
                 "updated_at": datetime.now(timezone.utc),
             },
         ).returning(Insights.id)
@@ -130,8 +130,8 @@ class InsightService(InsightInterface):
             {
                 "insight_id": dt.id,
                 "topic": dt.topic,
-                "emerging_score": dt.emerging_score,
-                "trend_score": dt.trend_score,
+                "relevancy_score": dt.relevancy_score,
+                "consistency_score": dt.consistency_score,
                 "reviews": [
                     {
                         "review_text": r.text,
