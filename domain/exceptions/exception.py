@@ -67,6 +67,17 @@ class DoubleIdentifierError(BaseError):
         )
 
 
+class RequestRateLimitedError(BaseError):
+    """Raised when request surpass limit"""
+
+    def __init__(self, limit: int = 10, window: int = 60):
+        message = "Too many request"
+        details = {"limit": limit, "window": window}
+        super().__init__(
+            message=message, error_code="RATE_LIMIT_ERROR", details=details
+        )
+
+
 # User related error
 class EmailAlreadyExistError(BaseError):
     """Raised when registering with existing email in the system."""

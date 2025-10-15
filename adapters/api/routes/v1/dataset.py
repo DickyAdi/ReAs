@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
 from ...services.auth import min_tier, get_user_from_any_schema
+from ...services.rate_limiter import is_allowed
 from ...core.validation.csv import validate_csv_metadata
 from ...core.validation.gmaps_url import validate_gmaps_url
 from ...schemas.response import ResponseCreated, ResponseAccepted, ResponseOk
@@ -55,6 +56,7 @@ async def upload_csv(
     dataset_id: str = Form(...),
     rating_column: Optional[str] = Form(),
     db: AsyncSession = Depends(get_db),
+    _is_rate_limited=Depends(is_allowed),
 ):
     dataset_id = UUID(hex=dataset_id)
     secured_file = await validate_csv_metadata(file=file)
@@ -77,6 +79,7 @@ async def extract_scrape(
     gmaps_url: str = Form(...),
     dataset_id: str = Form(...),
     db: AsyncSession = Depends(get_db),
+    _is_rate_limited=Depends(is_allowed),
 ):
     dataset_id = UUID(hex=dataset_id)
     secured_url = validate_gmaps_url(gmaps_url)

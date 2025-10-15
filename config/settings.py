@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     )
     jwt_algorithm: str = Field("HS256", alias="JWT_ALGORITHM")
     n_topic_store: int = Field(50, alias="N_TOPIC_STORE")
+    redis_n_connection_pool: int = Field(10, alias="REDIS_N_CONNECTION_POOL")
     scraping_auth_key: str = Field("noneexistence", alias="SCRAPING_AUTH_KEY")
 
     @computed_field
@@ -103,6 +104,28 @@ class DevSettings(Settings):
             path="0",
         )
 
+    @computed_field
+    @property
+    def celery_broker_url(self) -> RedisDsn:
+        return MultiHostUrl.build(
+            scheme="redis",
+            password=self.redis_password,
+            host=self.redis_host,
+            port=self.redis_port,
+            path="1",
+        )
+
+    @computed_field
+    @property
+    def celery_backend_url(self) -> RedisDsn:
+        return MultiHostUrl.build(
+            scheme="redis",
+            password=self.redis_password,
+            host=self.redis_host,
+            port=self.redis_port,
+            path="2",
+        )
+
 
 class ProdSettings(Settings):
     redis_password: str = Field("default", alias="PROD_REDIS_PASSWORD")
@@ -147,6 +170,28 @@ class ProdSettings(Settings):
             host=self.redis_host,
             port=self.redis_port,
             path="0",
+        )
+
+    @computed_field
+    @property
+    def celery_broker_url(self) -> RedisDsn:
+        return MultiHostUrl.build(
+            scheme="redis",
+            password=self.redis_password,
+            host=self.redis_host,
+            port=self.redis_port,
+            path="1",
+        )
+
+    @computed_field
+    @property
+    def celery_backend_url(self) -> RedisDsn:
+        return MultiHostUrl.build(
+            scheme="redis",
+            password=self.redis_password,
+            host=self.redis_host,
+            port=self.redis_port,
+            path="2",
         )
 
 

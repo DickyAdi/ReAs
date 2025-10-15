@@ -35,4 +35,5 @@ from .exception import (
     DataSourceNotFoundError,
     NotEnoughReviewsError,
     UnsupportedDomainToScrape,
+    RequestRateLimitedError,
 )

@@ -47,8 +47,8 @@ def get_predict_uc():
 
 app = Celery(
     "reas",
-    broker=str(settings.redis_url),
-    backend=str(settings.redis_url),
+    broker=str(settings.celery_broker_url),
+    backend=str(settings.celery_backend_url),
     include=["adapters.workers.tasks.dummy", "adapters.workers.pipeline.pipeline"],
 )
 

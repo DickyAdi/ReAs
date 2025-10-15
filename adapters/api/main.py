@@ -12,6 +12,7 @@ from .context.limiter import limiter
 from .core.handler.exception import rate_limit_handler
 from .core.handler import error_handler, unexpected_exception_handler
 from .middleware import LoggingMiddleware, CORSMiddleware
+from infrastructure.redis import REDIS_POOL
 from config.settings import settings
 from domain.exceptions import BaseError
 
@@ -20,7 +21,12 @@ from domain.exceptions import BaseError
 async def lifespan(app: FastAPI):
     # app.state.model = load_model()
     app.state.executor = get_executor()
+    await REDIS_POOL.initialize()
+    await REDIS_POOL.is_ready()
+
     yield
+
+    await REDIS_POOL.close_redis()
     if hasattr(app.state, "model"):
         del app.state.model
 
