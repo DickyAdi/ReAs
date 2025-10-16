@@ -23,9 +23,10 @@ class RateLimitService(RateLimitInterface):
             await pipe.expire(key, int(window.total_seconds()))
             results = await pipe.execute()
 
-        # return results[2] <= limit
         if (
             not results[2] <= limit
         ):  # if given request surpass limit threshold, will raise error
-            raise RequestRateLimitedError(limit=limit, window=int(window.total_seconds))
+            raise RequestRateLimitedError(
+                limit=limit, window=int(window.total_seconds())
+            )
         return True

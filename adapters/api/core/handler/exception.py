@@ -4,6 +4,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from datetime import datetime, timezone, timedelta
 from email.utils import formatdate
+from typing import Optional
 
 from domain.exceptions import BaseError
 
@@ -46,13 +47,13 @@ STATUS_CODE_MAP = {
     "DATASET_NAME_ALREADY_EXISTS_ERROR": status.HTTP_409_CONFLICT,
     "DATASET_NOT_FOUND": status.HTTP_404_NOT_FOUND,
     "UNSUPPORTED_DOMAIN_TO_SCRAPE": status.HTTP_400_BAD_REQUEST,
+    "RATE_LIMIT_ERROR": status.HTTP_429_TOO_MANY_REQUESTS,
 }
 
 
-def create_retry_after():
-    header_value = formatdate(
-        (datetime.now(timezone.utc) + timedelta(days=1)).timestamp(), usegmt=True
-    )
+def create_retry_after(window: Optional[timedelta] = timedelta(seconds=60)):
+    t = (datetime.now(timezone.utc) + window).timestamp()
+    header_value = formatdate(timeval=t, usegmt=True)
     return header_value
 
 
@@ -78,6 +79,12 @@ async def error_handler(request: Request, exc: BaseError):
     status_code = STATUS_CODE_MAP.get(
         exc.error_code, status.HTTP_500_INTERNAL_SERVER_ERROR
     )
+    response_headers = None
+    response_content = {
+        "error_code": exc.error_code,
+        "message": exc.message,
+        "details": exc.details,
+    }
 
     if exc.error_code in [
         "DATABASE_UNREACHABLE",
@@ -91,36 +98,34 @@ async def error_handler(request: Request, exc: BaseError):
             )
         else:
             error_logger.critical(f"Database error: {exc}", exc_info=True)
-        return JSONResponse(
-            status_code=status_code,
-            content={
-                "error_code": exc.error_code,
-                "message": "An unexpected error occured. Please try again later.",
-                "details": {},
-            },
+        response_content["message"] = (
+            "An unexpected error occured. Please try again later"
         )
+        response_content["details"] = {}
 
     if status_code >= 500:
         error_logger.error(f"Server error: {exc}", exc_info=True)
     else:
         error_logger.info("Client error: %s - %s", exc.error_code, exc.message)
 
-    response_body = JSONResponse(
-        status_code=status_code,
-        content={
-            "error_code": exc.error_code,
-            "message": exc.message,
-            "details": exc.details,
-        },
-    )
-
     if exc.error_code in [
         "INVALID_CREDENTIALS_ERROR",
         "INVALID_AUTHENTICATE_TOKEN_ERROR",
     ]:
-        response_body.init_headers({"WWWW-Authenticate": "Bearer"})
+        response_headers = {"WWW-Authenticate": "Bearer"}
+    elif exc.error_code == "RATE_LIMIT_ERROR":
+        client_ip = mask_ip(get_remote_address(request))
+        error_logger.warning(
+            "Rate limit warning for IP: %s, Path: %s", client_ip, request.url.path
+        )
+        response_content["details"] = {}
+        response_headers = {"Retry-After": create_retry_after()}
 
-    return response_body
+    response = JSONResponse(
+        status_code=status_code, content=response_content, headers=response_headers
+    )
+
+    return response
 
 
 async def unexpected_exception_handler(request: Request, exc: Exception):

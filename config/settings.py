@@ -102,7 +102,7 @@ class DevSettings(Settings):
             host=self.redis_host,
             port=self.redis_port,
             path="0",
-        )
+        ).unicode_string()
 
     @computed_field
     @property
@@ -113,7 +113,7 @@ class DevSettings(Settings):
             host=self.redis_host,
             port=self.redis_port,
             path="1",
-        )
+        ).unicode_string()
 
     @computed_field
     @property
@@ -124,7 +124,7 @@ class DevSettings(Settings):
             host=self.redis_host,
             port=self.redis_port,
             path="2",
-        )
+        ).unicode_string()
 
 
 class ProdSettings(Settings):
@@ -170,7 +170,7 @@ class ProdSettings(Settings):
             host=self.redis_host,
             port=self.redis_port,
             path="0",
-        )
+        ).unicode_string()
 
     @computed_field
     @property
@@ -181,7 +181,7 @@ class ProdSettings(Settings):
             host=self.redis_host,
             port=self.redis_port,
             path="1",
-        )
+        ).unicode_string()
 
     @computed_field
     @property
@@ -192,7 +192,7 @@ class ProdSettings(Settings):
             host=self.redis_host,
             port=self.redis_port,
             path="2",
-        )
+        ).unicode_string()
 
 
 env = os.getenv("ENV", "DEV")

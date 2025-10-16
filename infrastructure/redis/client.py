@@ -3,6 +3,7 @@ from redis.asyncio import Redis, ConnectionPool
 from redis.exceptions import ConnectionError
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+from asyncio import Semaphore
 
 from config.settings import settings
 
@@ -10,25 +11,34 @@ from config.settings import settings
 class RedisConnectionPool:
     def __init__(self):
         self.pool = None
+        self._semaphore = None
 
     async def initialize(self):
         if not self.pool:
             self.pool = ConnectionPool.from_url(
-                url=settings.redis_url, max_connections=settings.redis_n_connection_pool
+                url=settings.redis_url,
+                max_connections=settings.redis_n_connection_pool,
+                socket_connect_timeout=5,
+                socket_keepalive=True,
+                health_check_interval=30,
             )
+            self._semaphore = Semaphore(settings.redis_n_connection_pool)
 
     @asynccontextmanager
     async def get_redis(self) -> AsyncGenerator[Redis, None]:
         if not self.pool:
             await self.initialize()
 
-        redis_client = Redis.from_pool(self.pool)
-        try:
-            yield redis_client
-        except Exception as e:
-            raise e
-        finally:
-            await redis_client.close()
+        async with (
+            self._semaphore
+        ):  # add semaphore to wait for next available redis connection
+            redis_client = Redis.from_pool(self.pool)
+            try:
+                yield redis_client
+            except Exception as e:
+                raise e
+            finally:
+                pass  # pass connection back to the pool
 
     async def close_redis(self):
         if self.pool:

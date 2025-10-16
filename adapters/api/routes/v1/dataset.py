@@ -51,12 +51,12 @@ async def create_dataset(
 
 @router.post("/extract")
 async def upload_csv(
+    _is_rate_limited=Depends(is_allowed),
     text_column: str = Form(...),
     file: UploadFile = File(...),
     dataset_id: str = Form(...),
     rating_column: Optional[str] = Form(),
     db: AsyncSession = Depends(get_db),
-    _is_rate_limited=Depends(is_allowed),
 ):
     dataset_id = UUID(hex=dataset_id)
     secured_file = await validate_csv_metadata(file=file)
@@ -76,10 +76,10 @@ async def upload_csv(
 
 @router.post("/extract/scrape")
 async def extract_scrape(
+    _is_rate_limited=Depends(is_allowed),
     gmaps_url: str = Form(...),
     dataset_id: str = Form(...),
     db: AsyncSession = Depends(get_db),
-    _is_rate_limited=Depends(is_allowed),
 ):
     dataset_id = UUID(hex=dataset_id)
     secured_url = validate_gmaps_url(gmaps_url)

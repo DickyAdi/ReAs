@@ -4,12 +4,10 @@ from dotenv import load_dotenv
 load_dotenv()
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from slowapi.errors import RateLimitExceeded
 
 from .routes import router
-from .context.startup import load_model, get_executor
-from .context.limiter import limiter
-from .core.handler.exception import rate_limit_handler
+from .context.startup import get_executor
+
 from .core.handler import error_handler, unexpected_exception_handler
 from .middleware import LoggingMiddleware, CORSMiddleware
 from infrastructure.redis import REDIS_POOL
@@ -32,7 +30,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-app.state.limiter = limiter
 
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(
@@ -44,6 +41,5 @@ app.add_middleware(
 )
 
 app.include_router(router)
-app.add_exception_handler(RateLimitExceeded, handler=rate_limit_handler)
 app.add_exception_handler(BaseError, handler=error_handler)
 app.add_exception_handler(Exception, handler=unexpected_exception_handler)
