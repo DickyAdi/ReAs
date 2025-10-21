@@ -6,27 +6,22 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
 from .routes import router
-from .context.startup import get_executor
+from .context import start_app, stop_app
 
 from .core.handler import error_handler, unexpected_exception_handler
 from .middleware import LoggingMiddleware, CORSMiddleware
-from infrastructure.redis import REDIS_POOL
+
 from config.settings import settings
 from domain.exceptions import BaseError
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # app.state.model = load_model()
-    app.state.executor = get_executor()
-    await REDIS_POOL.initialize()
-    await REDIS_POOL.is_ready()
+    await start_app()
 
     yield
 
-    await REDIS_POOL.close_redis()
-    if hasattr(app.state, "model"):
-        del app.state.model
+    await stop_app()
 
 
 app = FastAPI(lifespan=lifespan)
